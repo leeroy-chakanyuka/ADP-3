@@ -71,21 +71,44 @@
                 <p>Your phone can create this without contacting Atomic Commits.</p>
               </div>
 
-              <div class="payment-code-card">
+              <div class="code-switch" aria-label="Authorization format">
+                <button class="active" data-view="code">Code</button>
+                <button data-view="qr">QR code</button>
+              </div>
+
+              <div class="payment-code-card" id="codeView">
                 <div class="payer-id">PAYER ID <strong>7K3M</strong></div>
                 <div class="digits" id="buyerCode">------</div>
                 <div class="timer"><div id="timerFill"></div></div>
-                <div class="timer-text"><span id="timerText">generating…</span><span>demo rotates every 15s</span></div>
+                <div class="validity-row">
+                  <strong id="validUntil">Valid until --:--</strong>
+                  <span id="timeLeft">calculating…</span>
+                </div>
+              </div>
+
+              <div class="qr-card hidden" id="qrView">
+                <div id="qrCode" class="qr-box"></div>
+                <strong id="qrValidUntil">Valid until --:--</strong>
+                <span>Same authorization, encoded for scanning.</span>
+              </div>
+
+              <div class="duration-picker">
+                <span>How long can this code be used?</span>
+                <div class="segmented">
+                  <button data-windows="2">Up to 10 min</button>
+                  <button class="active" data-windows="6">Up to 30 min</button>
+                </div>
+                <small id="durationHelp">The exact expiry time is shown above.</small>
               </div>
 
               <div class="policy-card">
                 <div><span>MAX PAYMENT</span><strong>R50.00</strong></div>
-                <div><span>VALIDITY</span><strong>≤ 30 min</strong></div>
+                <div><span>EXPIRES</span><strong id="policyExpiry">--:--</strong></div>
                 <div><span>USES</span><strong>1</strong></div>
               </div>
 
-              <button class="phone-button accent" id="sendBtn">Share payment code</button>
-              <p class="phone-help">Show it, send it, dictate it, or write it down.</p>
+              <button class="phone-button accent" id="sendBtn">Send to merchant</button>
+              <p class="phone-help">Use the six-digit code or scan the QR. They represent the same authorization.</p>
             </div>
             <div class="home-indicator"></div>
           </div>
@@ -126,7 +149,16 @@
                 <label><span>Merchant wallet</span><input id="wallet" value="$mamas-spaza.example"></label>
               </div>
 
-              <button class="phone-button" id="redeemBtn">Verify & pay</button>
+              <div class="merchant-limit">
+                <div><span>THIS CODE</span><strong>Max R50</strong></div>
+                <div><span>PAYER'S WALLET PERMISSION</span><strong>R500 / month</strong></div>
+                <p>R500 is the total monthly amount the payer approved Atomic Commits to initiate across all participating merchants. The shop only needs an approve/decline result.</p>
+              </div>
+
+              <div class="merchant-actions">
+                <button class="phone-button scan" id="scanQrBtn">Scan QR</button>
+                <button class="phone-button" id="redeemBtn">Verify & pay</button>
+              </div>
               <button class="replay-link" id="replayBtn" disabled>Try the same code again</button>
 
               <div class="receipt" id="verdict">
@@ -259,6 +291,7 @@ display → 7K3M 482193</div>
   <span>Open Payments hackathon prototype · Cape Town · 2026</span>
 </footer>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
