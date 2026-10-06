@@ -1,0 +1,1862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spaza Shop Payments — offline-capable payments on Open Payments</title>
+<style>
+  :root{
+    --bg:#080d0b;
+    --bg2:#0c1310;
+    --panel:#101a16;
+    --panel2:#14201b;
+    --line:#1e2d27;
+    --line2:#2a3d35;
+    --txt:#e9f2ee;
+    --dim:#93aaa1;
+    --dim2:#6b817a;
+    --accent:#3ddc84;
+    --accent-dim:#1f7a4a;
+    --amber:#f5c451;
+    --red:#ff6b6b;
+    --blue:#5eb3ff;
+    --purple:#b98bff;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth; scroll-padding-top:130px}
+  body{
+    margin:0; background:var(--bg); color:var(--txt);
+    font-family:var(--sans); line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  a{color:var(--accent); text-decoration:none}
+  a:hover{text-decoration:underline}
+  code, .mono{font-family:var(--mono)}
+  button{font-family:inherit}
+
+  /* ---------- background ambience ---------- */
+  .bg-orbs{position:fixed; inset:0; pointer-events:none; z-index:0; overflow:hidden}
+  .orb{position:absolute; border-radius:50%; filter:blur(90px); opacity:.16}
+  .orb.a{width:520px;height:520px;background:#3ddc84; top:-140px; left:-100px; animation:float1 22s ease-in-out infinite}
+  .orb.b{width:420px;height:420px;background:#f5c451; top:36%; right:-140px; animation:float2 26s ease-in-out infinite}
+  .orb.c{width:460px;height:460px;background:#5eb3ff; bottom:-160px; left:22%; animation:float1 30s ease-in-out infinite reverse}
+  @keyframes float1{0%,100%{transform:translate(0,0)}50%{transform:translate(60px,50px)}}
+  @keyframes float2{0%,100%{transform:translate(0,0)}50%{transform:translate(-70px,40px)}}
+  .grid-overlay{
+    position:fixed; inset:0; z-index:0; pointer-events:none; opacity:.35;
+    background-image:linear-gradient(rgba(61,220,132,.045) 1px, transparent 1px),
+                     linear-gradient(90deg, rgba(61,220,132,.045) 1px, transparent 1px);
+    background-size:52px 52px;
+    mask-image:radial-gradient(ellipse 80% 60% at 50% 0%, #000 20%, transparent 75%);
+    -webkit-mask-image:radial-gradient(ellipse 80% 60% at 50% 0%, #000 20%, transparent 75%);
+  }
+
+  .wrap{position:relative; z-index:1; max-width:1080px; margin:0 auto; padding:0 22px}
+
+  /* ---------- nav / tabs ---------- */
+  nav.top{
+    position:sticky; top:0; z-index:80;
+    backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+    background:rgba(8,13,11,.82); border-bottom:1px solid var(--line);
+  }
+  nav.top .inner{max-width:1080px; margin:0 auto; padding:11px 22px; display:flex; align-items:center; gap:18px}
+  .brand{font-weight:700; letter-spacing:-.02em; font-size:14px; display:flex; align-items:center; gap:8px; white-space:nowrap}
+  .brand .dot{width:9px;height:9px;border-radius:50%;background:var(--accent); box-shadow:0 0 12px var(--accent); animation:pulse 2.2s infinite}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
+
+  .tabs{display:flex; gap:6px; margin-left:auto; background:#0a120f; border:1px solid var(--line); padding:4px; border-radius:12px}
+  .tab{
+    appearance:none; border:none; background:transparent; color:var(--dim);
+    font-size:12.5px; font-weight:650; letter-spacing:.01em; padding:7px 16px; border-radius:9px;
+    cursor:pointer; transition:.25s; white-space:nowrap; position:relative;
+  }
+  .tab:hover{color:var(--txt)}
+  .tab.active{background:linear-gradient(180deg,#1a2c24,#13211b); color:var(--accent); box-shadow:0 0 0 1px var(--accent-dim), 0 6px 18px -10px var(--accent)}
+  .tab .tdot{display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--accent); margin-right:7px; vertical-align:middle; opacity:0; transition:.25s}
+  .tab.active .tdot{opacity:1; box-shadow:0 0 8px var(--accent)}
+
+  .sublinks{border-top:1px solid var(--line); background:rgba(8,13,11,.5)}
+  .sublinks .inner{max-width:1080px; margin:0 auto; padding:7px 22px; display:flex; gap:3px; overflow-x:auto; scrollbar-width:none}
+  .sublinks .inner::-webkit-scrollbar{display:none}
+  .sublinks a{
+    color:var(--dim2); font-size:11.5px; padding:5px 11px; border-radius:999px;
+    white-space:nowrap; transition:.2s; border:1px solid transparent;
+  }
+  .sublinks a:hover{color:var(--txt); background:var(--panel); text-decoration:none; border-color:var(--line)}
+  .sublinks a.active{color:var(--accent); border-color:var(--accent-dim); background:rgba(61,220,132,.07)}
+
+  /* ---------- panels ---------- */
+  .panel{display:none}
+  .panel.active{display:block; animation:panelIn .45s cubic-bezier(.2,.8,.3,1)}
+  @keyframes panelIn{from{opacity:0; transform:translateY(12px)}to{opacity:1;transform:none}}
+
+  /* ---------- hero ---------- */
+  header.hero{padding:70px 0 52px; position:relative}
+  .kicker{
+    display:inline-flex; align-items:center; gap:9px; font-size:12px; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--accent); font-weight:600;
+    border:1px solid var(--accent-dim); background:rgba(61,220,132,.06);
+    padding:6px 13px; border-radius:999px; margin-bottom:24px;
+  }
+  h1{
+    font-size:clamp(2.1rem, 5.4vw, 3.6rem); line-height:1.06; margin:0 0 20px;
+    letter-spacing:-.035em; font-weight:800; max-width:16ch;
+  }
+  h1 .grad{
+    background:linear-gradient(100deg,#3ddc84 0%, #8ef0b5 40%, #f5c451 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .lede{font-size:clamp(1rem,2.1vw,1.19rem); color:var(--dim); max-width:62ch; margin:0 0 34px}
+  .lede strong{color:var(--txt); font-weight:600}
+
+  .stats{display:grid; grid-template-columns:repeat(auto-fit,minmax(158px,1fr)); gap:12px; margin-top:36px}
+  .stat{
+    background:linear-gradient(180deg,var(--panel) 0%, rgba(16,26,22,.4) 100%);
+    border:1px solid var(--line); border-radius:14px; padding:16px 16px 14px;
+    position:relative; overflow:hidden;
+  }
+  .stat::before{
+    content:""; position:absolute; top:0; left:0; right:0; height:2px;
+    background:linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity:0; transition:.4s;
+  }
+  .stat:hover::before{opacity:1}
+  .stat .num{font-size:1.6rem; font-weight:800; letter-spacing:-.03em; color:var(--txt); line-height:1.1}
+  .stat .num small{font-size:.85rem; color:var(--accent); font-weight:700}
+  .stat .lbl{font-size:11.5px; color:var(--dim2); text-transform:uppercase; letter-spacing:.08em; margin-top:6px}
+
+  /* ---------- sections ---------- */
+  section{padding:56px 0; position:relative}
+  section + section{border-top:1px solid var(--line)}
+  .sec-head{display:flex; align-items:baseline; gap:14px; margin-bottom:8px}
+  .sec-num{
+    font-family:var(--mono); font-size:12px; color:var(--accent); font-weight:600;
+    border:1px solid var(--accent-dim); border-radius:6px; padding:2px 7px; flex:none;
+  }
+  h2{font-size:clamp(1.35rem,3vw,1.85rem); letter-spacing:-.025em; margin:0; font-weight:750}
+  h3{font-size:1.02rem; letter-spacing:-.01em; margin:34px 0 10px; font-weight:680; color:var(--txt)}
+  h4{font-size:.9rem; margin:0 0 6px; font-weight:680; color:var(--txt)}
+  p{color:var(--dim); margin:0 0 16px; max-width:74ch}
+  p strong, li strong{color:var(--txt); font-weight:640}
+  ul{color:var(--dim); padding-left:20px; margin:0 0 16px}
+  li{margin-bottom:9px}
+
+  .card{
+    background:linear-gradient(180deg, var(--panel) 0%, rgba(16,26,22,.55) 100%);
+    border:1px solid var(--line); border-radius:16px; padding:22px;
+  }
+  .grid2{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:14px}
+  .grid3{display:grid; grid-template-columns:repeat(auto-fit,minmax(215px,1fr)); gap:14px}
+
+  .callout{
+    border-left:3px solid var(--accent); background:rgba(61,220,132,.055);
+    border-radius:0 12px 12px 0; padding:16px 20px; margin:22px 0;
+  }
+  .callout.warn{border-left-color:var(--amber); background:rgba(245,196,81,.06)}
+  .callout p:last-child{margin-bottom:0}
+
+  .pill{
+    display:inline-block; font-family:var(--mono); font-size:11px; padding:3px 9px;
+    border-radius:999px; border:1px solid var(--line2); color:var(--dim); margin:0 6px 6px 0;
+  }
+  .pill.b{color:var(--blue); border-color:#1e4a6b; background:rgba(94,179,255,.07)}
+  .kbd{font-family:var(--mono); font-size:12px; background:#0a120f; border:1px solid var(--line2); padding:2px 6px; border-radius:6px; color:var(--accent)}
+
+  .brief-item{
+    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    padding:17px 18px; transition:.28s cubic-bezier(.2,.7,.3,1); position:relative; overflow:hidden;
+  }
+  .brief-item:hover{transform:translateY(-3px); border-color:var(--line2); box-shadow:0 14px 34px -18px rgba(0,0,0,.9)}
+  .brief-item .tick{color:var(--accent); font-size:13px; font-weight:700; margin-bottom:6px; display:block}
+  .brief-item p{font-size:13.5px; margin:0; line-height:1.6}
+  .brief-item.out .tick{color:var(--dim2)}
+
+  .formula{
+    font-family:var(--mono); font-size:13.5px; background:#070c0a; border:1px solid var(--line);
+    border-radius:12px; padding:16px 18px; color:var(--dim); margin:14px 0; overflow-x:auto; white-space:nowrap;
+  }
+  .formula b{color:var(--accent); font-weight:600}
+  .formula .hl{animation:formulaPulse 2.6s infinite}
+  @keyframes formulaPulse{0%,100%{color:var(--accent)}50%{color:var(--amber)}}
+
+  .oq{display:flex; gap:14px; padding:16px 0; border-bottom:1px solid var(--line)}
+  .oq:last-child{border-bottom:none}
+  .oq .q{font-family:var(--mono); color:var(--amber); font-size:13px; flex:none; padding-top:2px}
+  .oq p{margin:0; font-size:14px}
+
+  /* ============================================================
+     DEMO PANEL
+     ============================================================ */
+  .demo-hero{padding:46px 0 8px; text-align:center}
+  .demo-hero h2{font-size:clamp(1.5rem,3.4vw,2.1rem); margin-bottom:12px}
+  .demo-hero p{margin:0 auto 10px; max-width:66ch}
+  .demo-tag{
+    display:inline-flex; align-items:center; gap:8px; font-family:var(--mono); font-size:11px;
+    color:var(--amber); border:1px solid #5c4a1c; background:rgba(245,196,81,.07);
+    padding:5px 12px; border-radius:999px; margin-top:6px;
+  }
+
+  .demo-stage{
+    position:relative;
+    display:flex; align-items:center; justify-content:center;
+    gap: clamp(22px, 7vw, 110px);
+    flex-wrap:wrap;
+    padding: 44px 0 20px;
+  }
+
+  /* ---------- phone device ---------- */
+  .phone-device{
+    width: min(292px, 80vw);
+    flex: none;
+    position: relative;
+  }
+  .phone-frame{
+    position: relative;
+    border-radius: 44px;
+    background: #0b0b0b;
+    padding: 10px;
+    box-shadow:
+      0 0 0 1px #2f2f2f,
+      0 0 0 2.5px #141414,
+      0 34px 66px -30px rgba(0,0,0,.98),
+      0 0 70px -24px rgba(61,220,132,.2);
+    transition: box-shadow .5s;
+  }
+  .phone-device.pulse .phone-frame{
+    box-shadow:
+      0 0 0 1px #2f2f2f,
+      0 0 0 2.5px #141414,
+      0 34px 66px -30px rgba(0,0,0,.98),
+      0 0 90px -18px rgba(61,220,132,.55);
+  }
+  .phone-screen{
+    position: relative;
+    border-radius: 34px;
+    background: linear-gradient(180deg, #0b1310, #070c0a);
+    aspect-ratio: 9 / 17.6;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #1a2620;
+  }
+  .phone-screen::after{
+    content:"";
+    position:absolute; inset:0; pointer-events:none; border-radius:inherit;
+    background: linear-gradient(128deg, rgba(255,255,255,.075) 0%, transparent 34%, transparent 68%, rgba(255,255,255,.035) 100%);
+  }
+  .phone-island{
+    position:absolute; top:11px; left:50%; transform:translateX(-50%);
+    width:76px; height:21px; background:#000; border-radius:99px; z-index:12;
+    box-shadow: inset 0 0 0 1px #1c1c1c;
+  }
+  .status-bar{
+    height:44px; flex:none;
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 0 24px;
+    font-size:12px; font-weight:700; color:var(--txt);
+    letter-spacing:.01em;
+  }
+  .sb-right{display:flex; align-items:center; gap:6px}
+  .sb-air{color:var(--amber); font-size:12px}
+  .sb-bars{display:flex; align-items:flex-end; gap:1.5px; height:11px}
+  .sb-bars i{width:3px; background:var(--txt); border-radius:1px; display:block}
+  .sb-bars i:nth-child(1){height:4px}
+  .sb-bars i:nth-child(2){height:6px}
+  .sb-bars i:nth-child(3){height:8px}
+  .sb-bars i:nth-child(4){height:11px}
+  .sb-bars.off i{background:#3a4a44}
+  .sb-wifi{font-size:11px}
+  .sb-batt{
+    width:22px; height:11px; border:1.4px solid var(--txt); border-radius:3px;
+    position:relative; opacity:.9;
+  }
+  .sb-batt::after{content:""; position:absolute; right:-3.4px; top:3px; width:2px; height:4px; background:var(--txt); border-radius:0 2px 2px 0}
+  .sb-batt i{position:absolute; inset:1.4px; width:70%; background:var(--txt); border-radius:1.5px; display:block}
+
+  .app-top{
+    flex:none; padding: 2px 18px 12px;
+    display:flex; align-items:center; justify-content:space-between;
+    border-bottom:1px solid #16211c;
+  }
+  .app-name{font-size:13.5px; font-weight:700; letter-spacing:-.01em}
+  .app-name span{color:var(--accent)}
+  .app-badge{
+    font-family:var(--mono); font-size:9px; font-weight:700; letter-spacing:.1em;
+    padding:3px 8px; border-radius:99px;
+  }
+  .app-badge.offline{color:var(--amber); border:1px solid #5c4a1c; background:rgba(245,196,81,.1)}
+  .app-badge.online{color:var(--accent); border:1px solid var(--accent-dim); background:rgba(61,220,132,.1)}
+
+  .app-body{
+    flex:1; padding:16px 18px 0; overflow-y:auto; scrollbar-width:none;
+    display:flex; flex-direction:column;
+  }
+  .app-body::-webkit-scrollbar{display:none}
+
+  .home-bar{
+    position:absolute; bottom:7px; left:50%; transform:translateX(-50%);
+    width:96px; height:4px; border-radius:99px; background:#2a3d35; z-index:11;
+  }
+
+  .phone-caption{
+    text-align:center; margin-top:16px; font-size:11px; color:var(--dim2);
+    letter-spacing:.1em; text-transform:uppercase; font-weight:700;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+  }
+  .phone-caption .led{width:6px;height:6px;border-radius:50%;background:var(--accent); box-shadow:0 0 8px var(--accent)}
+  .phone-caption .led.off{background:var(--amber); box-shadow:0 0 8px var(--amber); animation:pulse 1.6s infinite}
+
+  /* ---------- buyer app ---------- */
+  .code-label{
+    font-size:9.5px; letter-spacing:.16em; text-transform:uppercase;
+    color:var(--dim2); font-weight:700; text-align:center; margin-bottom:6px;
+  }
+  .code-display{
+    font-family:var(--mono); font-size:2.5rem; font-weight:700; letter-spacing:.16em;
+    text-align:center; color:var(--accent); text-shadow:0 0 30px rgba(61,220,132,.5);
+    margin:0 0 14px; transition:.3s; line-height:1.05;
+  }
+  .code-display.flash{animation:codeFlash .6s ease}
+  @keyframes codeFlash{0%{transform:scale(1)}32%{transform:scale(1.13); color:#fff; text-shadow:0 0 40px #fff}100%{transform:scale(1)}}
+
+  .cd-track{height:5px; background:#0a120f; border-radius:99px; overflow:hidden; border:1px solid var(--line)}
+  .cd-fill{height:100%; background:linear-gradient(90deg,var(--accent),var(--amber)); transition:width .12s linear; border-radius:99px}
+  .cd-text{font-size:10.5px; color:var(--dim2); font-family:var(--mono); margin:7px 0 16px; text-align:center}
+
+  .mini-card{
+    background:#0a120f; border:1px solid var(--line); border-radius:12px;
+    padding:11px 13px; margin-bottom:12px;
+  }
+  .mc-row{display:flex; justify-content:space-between; font-size:11px; font-family:var(--mono); color:var(--dim2); padding:2.5px 0}
+  .mc-row b{color:var(--dim); font-weight:600}
+
+  .offline-note{
+    display:flex; gap:8px; align-items:flex-start;
+    font-size:10.5px; line-height:1.45; color:var(--dim2);
+    background:rgba(245,196,81,.055); border:1px solid #4a3d18; border-radius:10px;
+    padding:9px 11px; margin-bottom:14px;
+  }
+  .offline-note .led{width:6px;height:6px;border-radius:50%;background:var(--amber); flex:none; margin-top:5px; box-shadow:0 0 8px var(--amber)}
+
+  /* ---------- seller app ---------- */
+  .p-field{margin-bottom:12px}
+  .p-label{font-size:9.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--dim2); font-weight:700; margin-bottom:6px}
+  .p-amount{
+    display:flex; align-items:center; gap:6px;
+    background:#0a120f; border:1px solid var(--line2); border-radius:12px; padding:7px 12px;
+    transition:.2s;
+  }
+  .p-amount:focus-within{border-color:var(--accent); box-shadow:0 0 0 3px rgba(61,220,132,.11)}
+  .p-amount .r{font-size:18px; color:var(--dim2); font-weight:600; font-family:var(--mono)}
+  .p-amount input{
+    flex:1; background:none; border:none; outline:none; color:var(--txt);
+    font-family:var(--mono); font-size:21px; font-weight:700; width:100%; padding:0; min-width:0;
+  }
+  .p-amount input::-webkit-outer-spin-button,
+  .p-amount input::-webkit-inner-spin-button{-webkit-appearance:none; margin:0}
+  .p-amount input[type=number]{-moz-appearance:textfield; appearance:textfield}
+
+  .chips{display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-bottom:14px}
+  .chip{
+    appearance:none; border:1px solid var(--line2); background:#0a120f; color:var(--dim);
+    font-family:var(--mono); font-size:11px; font-weight:600; padding:6px 0; border-radius:8px;
+    cursor:pointer; transition:.2s;
+  }
+  .chip:hover{border-color:var(--accent-dim); color:var(--accent); background:rgba(61,220,132,.07)}
+
+  .code-boxes{display:grid; grid-template-columns:repeat(6,1fr); gap:5px; margin-bottom:14px}
+  .code-boxes span{
+    aspect-ratio: 1 / 1.3;
+    display:flex; align-items:center; justify-content:center;
+    background:#0a120f; border:1px solid var(--line2); border-radius:9px;
+    font-family:var(--mono); font-size:16px; font-weight:700; color:var(--txt);
+    transition:.28s cubic-bezier(.2,1.4,.4,1);
+  }
+  .code-boxes span.filled{
+    border-color:var(--accent); background:rgba(61,220,132,.1); color:var(--accent);
+    box-shadow:0 0 16px -5px rgba(61,220,132,.75); transform:translateY(-1px);
+  }
+
+  .btn{
+    appearance:none; border:1px solid var(--line2); background:var(--panel2); color:var(--txt);
+    font-size:13px; font-weight:650; padding:11px 14px; border-radius:11px;
+    cursor:pointer; transition:.2s; width:100%;
+  }
+  .btn:hover:not(:disabled){border-color:var(--accent-dim); background:#17251f; transform:translateY(-1px)}
+  .btn:active:not(:disabled){transform:translateY(0)}
+  .btn:disabled{opacity:.35; cursor:not-allowed}
+  .btn.primary{background:linear-gradient(180deg,#2fbf6f,#249b58); border-color:#3ddc84; color:#04140c; font-weight:700}
+  .btn.primary:hover:not(:disabled){background:linear-gradient(180deg,#3ddc84,#2bb268)}
+  .btn.ghost{background:transparent; font-size:12px; padding:9px 12px}
+
+  .verdict{
+    margin-top:10px; text-align:center; font-family:var(--mono); font-size:10.5px;
+    letter-spacing:.09em; text-transform:uppercase; padding:8px; border-radius:9px;
+    border:1px dashed var(--line2); color:var(--dim2); transition:.3s;
+  }
+  .verdict.ok{border-color:var(--accent); color:var(--accent); background:rgba(61,220,132,.09); border-style:solid}
+  .verdict.no{border-color:var(--red); color:var(--red); background:rgba(255,107,107,.09); border-style:solid}
+  .verdict.pending{border-color:var(--amber); color:var(--amber); border-style:solid}
+
+  .grant{margin-top:14px; border-top:1px solid var(--line); padding-top:13px; padding-bottom:16px}
+  .gl{display:flex; justify-content:space-between; font-size:10px; color:var(--dim2); font-family:var(--mono); margin-bottom:6px}
+  .bar{height:5px; background:#0a120f; border-radius:99px; overflow:hidden; border:1px solid var(--line)}
+  .bar div{height:100%; width:0%; background:linear-gradient(90deg,var(--blue),var(--accent)); transition:width .6s cubic-bezier(.2,.8,.3,1); border-radius:99px}
+
+  /* ---------- flying note ---------- */
+  .note-flyer{
+    position:absolute; z-index:40; pointer-events:none;
+    width:172px; padding:15px 17px;
+    background:repeating-linear-gradient(180deg,#f4efdf 0px,#f4efdf 22px,#ded7c3 23px);
+    color:#25231c; border-radius:5px;
+    box-shadow: 0 24px 44px -16px rgba(0,0,0,.9), 0 0 0 1px rgba(0,0,0,.2), 0 0 40px -8px rgba(61,220,132,.4);
+    opacity:0; transform:translate(-50%,-50%) scale(.5);
+    will-change:left,top,transform,opacity;
+  }
+  .note-flyer .nf-label{font-size:8.5px; letter-spacing:.2em; text-transform:uppercase; color:#8a8271; font-weight:700}
+  .note-flyer .nf-code{font-family:var(--mono); font-size:1.5rem; font-weight:700; letter-spacing:.14em; color:#123a24; margin:7px 0 2px}
+  .note-flyer .nf-foot{font-size:9.5px; color:#8a8271; font-style:italic; border-top:1px dashed #c9c1ad; padding-top:6px; margin-top:8px}
+
+  /* ---------- console ---------- */
+  .console-wrap{margin-top:14px; border:1px solid var(--line); border-radius:16px; overflow:hidden; background:#070c0a}
+  .console-bar{
+    display:flex; align-items:center; gap:10px; padding:10px 15px;
+    background:var(--panel); border-bottom:1px solid var(--line); font-size:11.5px; color:var(--dim2);
+    font-family:var(--mono); letter-spacing:.05em;
+  }
+  .console-bar .dots{display:flex; gap:5px}
+  .console-bar .dots i{width:8px;height:8px;border-radius:50%;background:#2a3d35;display:block}
+  .console-bar .dots i:first-child{background:#ff6b6b66}
+  .console-bar .dots i:nth-child(2){background:#f5c45166}
+  .console-bar .dots i:nth-child(3){background:#3ddc8466}
+  .console-bar .spacer{margin-left:auto; display:flex; gap:8px; align-items:center}
+  .console-bar .rec{width:6px;height:6px;border-radius:50%;background:var(--accent); animation:pulse 1.5s infinite}
+  .console{
+    padding:14px 16px; font-family:var(--mono); font-size:12.2px; line-height:1.72;
+    height:265px; overflow-y:auto;
+  }
+  .console::-webkit-scrollbar{width:8px}
+  .console::-webkit-scrollbar-thumb{background:#1e2d27; border-radius:9px}
+  .cline{opacity:0; transform:translateX(-8px); animation:lineIn .35s forwards; white-space:pre-wrap; word-break:break-word}
+  @keyframes lineIn{to{opacity:1; transform:none}}
+  .cline .ts{color:#3f554d}
+  .cline.info{color:var(--dim)}
+  .cline.ok{color:var(--accent)}
+  .cline.err{color:var(--red)}
+  .cline.warn{color:var(--amber)}
+  .cline.op{color:var(--blue)}
+  .cline.sys{color:var(--purple)}
+
+  .demo-actions{display:flex; gap:10px; justify-content:center; margin-top:22px; flex-wrap:wrap}
+  .demo-actions .btn{width:auto; padding:10px 20px}
+
+  /* ---------- sequence diagram ---------- */
+  .seq-wrap{background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:20px 16px 16px; overflow-x:auto}
+  .seq{min-width:680px; position:relative}
+  .seq-head{display:grid; grid-template-columns:repeat(5,1fr); margin-bottom:6px}
+  .seq-head div{
+    text-align:center; font-size:11.5px; font-weight:650; color:var(--txt);
+    padding:8px 4px; border:1px solid var(--line); border-radius:9px; margin:0 5px;
+    background:var(--panel2); transition:.3s;
+  }
+  .seq-head div.hot{border-color:var(--accent-dim); background:rgba(61,220,132,.1); color:var(--accent)}
+  .seq-body{position:relative; transition:height .3s}
+  .lifeline{position:absolute; top:0; bottom:0; width:1px; background:repeating-linear-gradient(180deg, var(--line2) 0 5px, transparent 5px 11px)}
+  .seq-phase{position:absolute; left:0; right:0; font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--dim2); font-weight:700; opacity:0; transform:translateY(6px); transition:.5s}
+  .seq-phase.on{opacity:1; transform:none}
+  .seq-phase span{border-bottom:1px solid var(--line); padding-bottom:4px; display:inline-block}
+  .seq-msg{position:absolute; left:0; right:0; height:0; opacity:0; transition:opacity .3s}
+  .seq-msg.on{opacity:1}
+  .seq-label{position:absolute; top:-19px; font-size:11.4px; color:var(--dim); text-align:center; white-space:nowrap; line-height:1.2}
+  .seq-msg.on .seq-label{color:var(--txt)}
+  .seq-line{position:absolute; top:0; height:2px; background:var(--line2); transform:scaleX(0); transform-origin:left center; transition:transform .45s cubic-bezier(.3,.8,.3,1); border-radius:2px}
+  .seq-msg.rev .seq-line{transform-origin:right center}
+  .seq-msg.on .seq-line{transform:scaleX(1)}
+  .seq-msg.fwd .seq-line{background:linear-gradient(90deg,var(--accent-dim),var(--accent))}
+  .seq-msg.rev .seq-line{background:linear-gradient(90deg,var(--blue),#2b6f9e)}
+  .seq-msg .arrow{position:absolute; top:-5px; width:0; height:0; opacity:0; transition:opacity .2s .35s; border-top:6px solid transparent; border-bottom:6px solid transparent}
+  .seq-msg.fwd .arrow{right:-1px; border-left:9px solid var(--accent)}
+  .seq-msg.rev .arrow{left:-1px; border-right:9px solid var(--blue)}
+  .seq-msg.on .arrow{opacity:1}
+  .seq-dot{position:absolute; top:-4px; left:0; width:10px; height:10px; border-radius:50%; background:#fff; box-shadow:0 0 14px 3px rgba(61,220,132,.85); opacity:0}
+  .seq-msg.on .seq-dot{animation:travel .55s cubic-bezier(.4,0,.6,1) forwards}
+  @keyframes travel{0%{opacity:1; left:0}85%{opacity:1}100%{opacity:0; left:calc(100% - 10px)}}
+  .seq-msg.self .loop{position:absolute; top:-2px; width:44px; height:26px; border:2px solid var(--amber); border-left:none; border-radius:0 10px 10px 0; opacity:0; transform:scaleX(.4); transform-origin:left center; transition:.35s}
+  .seq-msg.self.on .loop{opacity:1; transform:scaleX(1)}
+  .seq-msg.self .seq-label{text-align:left}
+  .seq-controls{display:flex; gap:9px; align-items:center; margin-top:16px; flex-wrap:wrap}
+  .seq-controls .btn{width:auto; padding:8px 15px; font-size:12.5px}
+  .seq-legend{display:flex; gap:16px; font-size:11px; color:var(--dim2); margin-left:auto; flex-wrap:wrap}
+  .seq-legend i{display:inline-block; width:16px; height:2px; vertical-align:middle; margin-right:6px; border-radius:2px}
+
+  /* ---------- flow ---------- */
+  .flow{position:relative; padding-left:34px; margin-top:22px}
+  .flow-rail{position:absolute; left:11px; top:6px; bottom:6px; width:2px; background:var(--line); border-radius:2px}
+  .flow-rail-fill{position:absolute; left:0; top:0; width:100%; height:0%; background:linear-gradient(180deg,var(--accent),var(--amber)); border-radius:2px; transition:height .5s cubic-bezier(.3,.8,.3,1); box-shadow:0 0 16px rgba(61,220,132,.55)}
+  .flow-step{position:relative; margin-bottom:11px}
+  .flow-step::before{content:""; position:absolute; left:-29px; top:19px; width:11px; height:11px; border-radius:50%; background:var(--bg); border:2px solid var(--line2); transition:.35s; z-index:2}
+  .flow-step.on::before{border-color:var(--accent); background:var(--accent); box-shadow:0 0 14px rgba(61,220,132,.8)}
+  .flow-step.decision.on::before{border-color:var(--amber); background:var(--amber); box-shadow:0 0 14px rgba(245,196,81,.8)}
+  .flow-row{display:grid; grid-template-columns:1fr 168px; gap:12px; align-items:center}
+  @media(max-width:640px){.flow-row{grid-template-columns:1fr} .flow-branch{display:none!important}}
+  .flow-node{background:var(--panel); border:1px solid var(--line); border-radius:13px; padding:14px 17px; font-size:14px; color:var(--dim); transition:.42s cubic-bezier(.2,.8,.3,1); position:relative; overflow:hidden}
+  .flow-node .n{font-family:var(--mono); font-size:10.5px; color:var(--dim2); display:block; margin-bottom:3px; letter-spacing:.08em}
+  .flow-step.on .flow-node{border-color:var(--accent-dim); color:var(--txt); transform:translateX(4px); background:linear-gradient(90deg, rgba(61,220,132,.09), var(--panel) 60%); box-shadow:-8px 0 26px -18px var(--accent)}
+  .flow-step.decision .flow-node{border-style:dashed; border-color:var(--line2)}
+  .flow-step.decision.on .flow-node{border-color:#6b5620; border-style:solid; color:var(--txt); background:linear-gradient(90deg, rgba(245,196,81,.1), var(--panel) 60%)}
+  .flow-branch{font-size:11.5px; font-family:var(--mono); color:var(--red); opacity:.25; border:1px dashed #4a2626; border-radius:10px; padding:8px 11px; text-align:center; transition:.4s}
+  .flow-branch.on{opacity:1; background:rgba(255,107,107,.07); border-style:solid; animation:shake .4s}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(4px)}75%{transform:translateX(-4px)}}
+  .flow-branch.yes{color:var(--accent); border-color:#1f5c3a; opacity:.25}
+  .flow-branch.yes.on{opacity:1; background:rgba(61,220,132,.08); border-style:solid; animation:none}
+
+  /* ---------- cost ---------- */
+  .calc{display:grid; grid-template-columns:1fr 1fr; gap:26px; align-items:center}
+  @media(max-width:700px){.calc{grid-template-columns:1fr}}
+  input[type=range]{-webkit-appearance:none; appearance:none; width:100%; height:6px; border-radius:99px; background:linear-gradient(90deg,var(--accent),var(--amber)); outline:none; margin:18px 0 8px}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:22px; height:22px; border-radius:50%; background:#0a120f; border:3px solid var(--accent); cursor:pointer; box-shadow:0 0 0 5px rgba(61,220,132,.13)}
+  input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:#0a120f;border:3px solid var(--accent);cursor:pointer}
+  .calc-out{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+  .calc-box{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px}
+  .calc-box .v{font-family:var(--mono); font-size:1.55rem; font-weight:700; color:var(--accent); letter-spacing:-.02em}
+  .calc-box .k{font-size:11px; text-transform:uppercase; letter-spacing:.1em; color:var(--dim2); margin-top:5px}
+  .calc-slider-label{display:flex; justify-content:space-between; font-size:12px; color:var(--dim2); font-family:var(--mono)}
+
+  /* ---------- reveal ---------- */
+  .reveal{opacity:0; transform:translateY(20px); transition:opacity .65s cubic-bezier(.2,.8,.3,1), transform .65s cubic-bezier(.2,.8,.3,1)}
+  .reveal.in{opacity:1; transform:none}
+
+  footer{padding:50px 0 70px; border-top:1px solid var(--line); color:var(--dim2); font-size:13px}
+  footer .wrap{display:flex; justify-content:space-between; gap:20px; flex-wrap:wrap; align-items:center}
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.01ms!important; animation-iteration-count:1!important; transition-duration:.01ms!important}
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-orbs">
+  <div class="orb a"></div><div class="orb b"></div><div class="orb c"></div>
+</div>
+<div class="grid-overlay"></div>
+
+<!-- ============================================================
+     NAV
+     ============================================================ -->
+<nav class="top">
+  <div class="inner">
+    <div class="brand"><span class="dot"></span> Spaza Shop Payments</div>
+    <div class="tabs" role="tablist">
+      <button class="tab active" data-tab="overview" role="tab"><span class="tdot"></span>Overview</button>
+      <button class="tab" data-tab="demo" role="tab"><span class="tdot"></span>Live demo</button>
+    </div>
+  </div>
+  <div class="sublinks" id="sublinks">
+    <div class="inner">
+      <a href="#problem">Problem</a>
+      <a href="#solution">Solution</a>
+      <a href="#brief">Brief</a>
+      <a href="#openpayments">Open Payments</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#fast">Speed</a>
+      <a href="#offline">Offline?</a>
+      <a href="#cost">Cost</a>
+      <a href="#simplicity">Simplicity</a>
+      <a href="#questions">Open questions</a>
+    </div>
+  </div>
+</nav>
+
+<main>
+
+<!-- ============================================================
+     PANEL: OVERVIEW
+     ============================================================ -->
+<div class="panel active" id="panel-overview">
+
+  <header class="hero">
+    <div class="wrap">
+      <div class="kicker reveal">Hackathon submission · Open Payments</div>
+      <h1 class="reveal">A payment code <span class="grad">written on a note</span>, carried to the shop.</h1>
+      <p class="lede reveal">
+        The buyer generates a short-lived, single-use code <strong>offline</strong> and writes it down.
+        Someone else carries it to the corner shop. The seller types it in. Our server verifies it and
+        settles over <strong>Open Payments</strong> — no cash, no card reader, no phone for the messenger.
+      </p>
+
+      <div class="stats reveal">
+        <div class="stat"><div class="num">150,000</div><div class="lbl">Spaza shops</div></div>
+        <div class="stat"><div class="num">5.2<small>%</small></div><div class="lbl">of GDP</div></div>
+        <div class="stat"><div class="num">2.6<small>M</small></div><div class="lbl">Livelihoods</div></div>
+        <div class="stat"><div class="num">~90<small>%</small></div><div class="lbl">Still cash</div></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- PROBLEM -->
+  <section id="problem">
+    <div class="wrap">
+      <div class="sec-head reveal"><span class="sec-num">01</span><h2>The problem</h2></div>
+      <p class="reveal">
+        South Africa has roughly 150,000 spaza shops, contributing about 5.2% of GDP and supporting an estimated
+        2.6 million livelihoods. Informal retail makes up around 30% of the country's total retail market, and
+        40–50% of grocery sales in township communities specifically.
+      </p>
+      <p class="reveal">
+        Despite that scale, <strong>close to nine in ten transactions in the informal sector are still cash.</strong>
+        Existing digital options tend to bring high transaction costs, expensive hardware, or systems that don't
+        work across different providers.
+      </p>
+    </div>
+  </section>
+
+  <!-- SOLUTION -->
+  <section id="solution">
+    <div class="wrap">
+      <div class="sec-head reveal"><span class="sec-num">02</span><h2>The solution</h2></div>
+      <p class="reveal">
+        The solution is built around a <strong>short-lived, single-use payment code</strong>. A buyer generates the
+        code in advance and writes it on a note that can be carried to the shop by someone else. The code can remain
+        valid for up to around 10 minutes, but it expires immediately after a successful payment.
+      </p>
+      <p class="reveal">
+        The 10-minute window is useful for the everyday scenario we want to enable: a parent can generate a code at
+        home and send a child to the corner shop to buy bread — without giving the child a phone, cash, or access to
+        the buyer's account. If the note is lost or intercepted, its usefulness is limited by the short expiry window,
+        and once it has been accepted once, it cannot be reused.
+      </p>
+
+      <div class="grid3 reveal" style="margin:24px 0">
+        <div class="card">
+          <div class="p-label" style="margin-bottom:8px">Step 1 — setup, once</div>
+          <p style="font-size:13.5px;margin:0">Buyer and our server agree on a <strong>shared secret</strong> while the buyer has signal.</p>
+        </div>
+        <div class="card">
+          <div class="p-label" style="margin-bottom:8px">Step 2 — offline</div>
+          <p style="font-size:13.5px;margin:0">The app derives a code from the secret, the current time and transaction inputs. <strong>No connectivity needed.</strong></p>
+        </div>
+        <div class="card">
+          <div class="p-label" style="margin-bottom:8px">Step 3 — at the till</div>
+          <p style="font-size:13.5px;margin:0">Seller relays <span class="kbd">{code, amount}</span>. The server verifies, marks it spent, and settles via Open Payments.</p>
+        </div>
+      </div>
+
+      <div class="formula reveal">
+        <span class="hl">HMAC</span>( <b>secret</b> , <b>time_window</b> ) → truncate → <b>6 digits</b> &nbsp;·&nbsp; verifiable server-side without the buyer ever being online
+      </div>
+
+      <p class="reveal">
+        The app applies a cryptographic hash or keyed hash function to those values, producing a short code that the
+        server can independently verify without the buyer needing connectivity. The seller enters the code and the
+        purchase amount into the seller app, which forwards them to our server. The server checks that the code is
+        authentic, still within its validity window, and has not already been spent. If those checks pass, it marks
+        the code as used and continues with the Open Payments flow.
+      </p>
+      <p class="reveal">
+        This shared-secret, offline-generation model is what powers the buyer-side offline experience: the buyer does
+        not need signal at the moment the code is created or handed over. The seller and our server still need
+        connectivity to submit and settle the transaction — but the person making the payment can prepare it entirely
+        offline.
+      </p>
+
+      <div class="callout reveal">
+        <p style="margin:0">
+          <strong>See it run.</strong> The <em>Live demo</em> tab has two working phones — a buyer app generating a real
+          HMAC code offline, and a seller till relaying it to the server. Write a note, carry it across, and try to
+          spend it twice.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- BRIEF -->
+  <section id="brief">
+    <div class="wrap">
+      <div class="sec-head reveal"><span class="sec-num">03</span><h2>How this addresses the brief</h2></div>
+      <p class="reveal">The challenge brief lists eight things a solution might explore. Here's where we land on each.</p>
+
+      <div class="grid2 reveal" style="margin-top:22px">
+        <div class="brief-item">
+          <span class="tick">✓ Low-cost digital payment acceptance</span>
+          <p>The code itself is just a short cryptographic calculation: the app computes <span class="kbd">HMAC(secret, time window)</span> and truncates the result to a few digits. 10MB costing R2 across 1,000 transactions is <strong>R0.002 per transaction</strong>.</p>
+        </div>
+        <div class="brief-item">
+          <span class="tick">✓ Payments without expensive point-of-sale hardware</span>
+          <p>Sellers only need a phone with data and our app; no card reader, NFC terminal, or dedicated hardware. Many low-budget phones don't have NFC — and a phone that can run an app or send data is not automatically NFC-capable. Our design works on ordinary connected phones.</p>
+        </div>
+        <div class="brief-item">
+          <span class="tick">✓ Interoperability between wallets/providers</span>
+          <p>This is what Open Payments buys directly: any wallet address works, regardless of which provider issued it. <strong>No closed-loop lock-in.</strong></p>
+        </div>
+        <div class="brief-item">
+          <span class="tick">✓ Faster or more transparent settlement</span>
+          <p>Sub-second answer at the till, settlement a beat behind — and a plain running record of amount, timestamp and seller the shop can check whenever it likes.</p>
+        </div>
+        <div class="brief-item">
+          <span class="tick">✓ Offline or low-connectivity payment experiences</span>
+          <p>Our core differentiator: the buyer never needs signal — or even a phone — at the moment of purchase.</p>
+        </div>
+        <div class="brief-item">
+          <span class="tick">✓ Simple onboarding for shop owners</span>
+          <p>A seller needs three things: a phone with data, an Open Payments wallet address (sign up with any supporting provider), and our app. No merchant bank account application, no hardware order, no card-scheme approval.</p>
+        </div>
+        <div class="brief-item">
+          <span class="tick">✓ Better transaction records and payment visibility</span>
+          <p>Every transaction is logged server-side with amount, timestamp and seller — a plain running record the seller can check.</p>
+        </div>
+        <div class="brief-item out">
+          <span class="tick">— Customer loyalty / community features</span>
+          <p>Deliberately out of scope, in line with the brief's own "you don't need to solve everything." Worth noting for the pitch though: the same grant mechanism extends naturally to <strong>stokvel-style pooled contributions</strong>. Good v2 material, not core scope.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- OPEN PAYMENTS -->
+  <section id="openpayments">
+    <div class="wrap">
+      <div class="sec-head reveal"><span class="sec-num">04</span><h2>How Open Payments actually works</h2></div>
+      <p class="reveal">
+        Open Payments is an open API standard that banks, mobile money providers, and digital wallets can implement so
+        third-party apps (like ours) can initiate payments on a user's behalf, with their consent, without ever touching
+        raw banking credentials. It's built from three pieces:
+      </p>
+
+      <div class="grid3 reveal" style="margin:22px 0">
+        <div class="card">
+          <h4>Wallet address server</h4>
+          <p style="font-size:13.5px;margin:0">Exposes public info about an account via a "wallet address" — a URL-based version of an email address, e.g. <span class="kbd">$wallet.example/alice</span>.</p>
+        </div>
+        <div class="card">
+          <h4>Resource server</h4>
+          <p style="font-size:13.5px;margin:0">The API for actually doing things against an account: creating quotes, incoming payments, outgoing payments.</p>
+        </div>
+        <div class="card">
+          <h4>Authorization server</h4>
+          <p style="font-size:13.5px;margin:0">Issues <strong>grants</strong> (permission slips) that let a client call the resource server, using the GNAP standard.</p>
+        </div>
+      </div>
+
+      <h3 class="reveal">A payment happens in three steps</h3>
+      <div class="reveal" id="opSteps">
+        <div class="oq"><div class="q">01</div><p><strong>Incoming payment</strong>, created on the <em>seller's</em> side — "expect a payment of this amount." Grant for this is non-interactive.</p></div>
+        <div class="oq"><div class="q">02</div><p><strong>Quote</strong>, created on the <em>buyer's</em> side — calculates exactly how much leaves the buyer's account, how much the seller receives, and the routing/conversion in between. Also non-interactive.</p></div>
+        <div class="oq"><div class="q">03</div><p><strong>Outgoing payment</strong>, created on the <em>buyer's</em> side — actually moves the money. Open Payments requires this grant to be <strong>interactive</strong>: the buyer has to explicitly consent, via their own wallet's own consent screen, before a token is issued.</p></div>
+      </div>
+
+      <div class="callout reveal">
+        <p style="margin:0">That third step is the one that matters most for our design.</p>
+      </div>
+
+      <h3 class="reveal">How we use it</h3>
+      <p class="reveal">
+        Step 3 is the only place Open Payments requires the buyer to be interactively present — so that's the one moment,
+        <strong>at registration</strong>, where the buyer is online and consents directly, through their wallet's own
+        screen, to a grant scoped the way subscriptions are: something like <em>"up to R50 per transaction, R500 a month,
+        through this app."</em> After that, our server can create quotes and outgoing payments against that standing grant
+        without asking the buyer to interact again — no redirect, no re-prompt, per purchase.
+      </p>
+
+      <div class="grid2 reveal" style="margin-top:20px">
+        <div class="card">
+          <h4 style="color:var(--accent)">Once, at registration</h4>
+          <ul style="margin:0;font-size:13.5px">
+            <li>Buyer consents via their wallet's own screen</li>
+            <li>Grant bounded: R50/txn, R500/month</li>
+            <li>Shared secret registered with our server</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h4 style="color:var(--amber)">Every purchase after</h4>
+          <ul style="margin:0;font-size:13.5px">
+            <li>Code derived offline from secret + time</li>
+            <li>Single-use: spent the instant it's accepted</li>
+            <li>No redirect, no re-prompt, no buyer interaction</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="callout warn reveal" style="margin-top:22px">
+        <p style="margin:0">
+          <strong>We dropped the hash-chained ledger idea from an earlier draft.</strong> With Open Payments as the actual
+          settlement rail, the record of truth lives with the wallet providers — a bespoke tamper-evidence layer on our own
+          database added complexity without adding to what's actually being judged. That time is better spent on the Open
+          Payments integration itself, which is 20% of the judging criteria on its own.
+        </p>
+      </div>
+
+      <p class="reveal">
+        For building this: Interledger runs a free test wallet network at
+        <span class="kbd">wallet.interledger-test.dev</span> — sign up, get a key pair, and you've got sender and receiver
+        wallets to build and demo against without needing a real bank relationship.
+      </p>
+    </div>
+  </section>
+
+  <!-- ARCHITECTURE -->
+  <section id="architecture">
+    <div class="wrap">
+      <div class="sec-head reveal"><span class="sec-num">05</span><h2>Architecture</h2></div>
+      <p class="reveal">The full sequence, animated. Press play, or scroll past and it runs itself.</p>
+
+      <div class="seq-wrap reveal">
+        <div class="seq" id="seq">
+          <div class="seq-head" id="seqHead"></div>
+          <div class="seq-body" id="seqBody"></div>
+        </div>
+        <div class="seq-controls">
+          <button class="btn primary" id="seqPlay">▶ Replay sequence</button>
+          <div class="seq-legend">
+            <span><i style="background:var(--accent)"></i>request</span>
+            <span><i style="background:var(--blue)"></i>response</span>
+            <span><i style="background:var(--amber)"></i>internal</span>
+          </div>
+        </div>
+      </div>
+
+      <h3 class="reveal">Transaction decision flow</h3>
+      <p class="reveal">What happens between the seller hitting submit and the till going green.</p>
+
+      <div class="flow reveal" id="flow">
+        <div class="flow-rail"><div class="flow-rail-fill" id="railFill"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAST -->
+  <section id="fast">
+    <div class="wrap">
+      <div class="sec-head reveal"><span class="sec-num">06</span><h2>How we keep it fast</h2></div>
+      <p class="reveal">Two things do the work:</p>
+
+      <div class="grid2 reveal" style="margin-top:18px">
+        <div class="card">
+          <div class="pill b">01</div>
+          <h4 style="margin-top:10px">The slow part happens once, not per purchase</h4>
+          <p style="margin:0;font-size:14px">
+            The interactive grant — the only step in Open Payments that needs the buyer present — is done at registration.
+            Everything after runs against the standing grant: no redirect, no re-prompt.
+          </p>
+        </div>
+        <div class="card">
+          <div class="pill b">02</div>
+          <h4 style="margin-top:10px">Fast local answer; settle a beat behind</h4>
+          <p style="margin:0;font-size:14px">
+            Our server verifies the code and checks a recently-synced balance snapshot in milliseconds — enough to give the
+            seller an instant approval. The actual Open Payments call runs asynchronously right after.
+          </p>
+        </div>
+      </div>
+
+      <p class="reveal" style="margin-top:20px">
+        This is exactly how contactless card payments already work: the terminal shows green before the transaction has
+        technically cleared. It does reopen a sliver of the double-spend exposure we solved earlier, so it stays bounded
+        by the same per-transaction and monthly caps as before.
+      </p>
+
+      <div class="callout reveal">
+        <p style="margin:0"><strong>Realistic target:</strong> sub-second for the "can I have my bread and coke" answer at
+        the till; a few seconds behind that for settlement to actually land.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- OFFLINE -->
+  <section id="offline">
+    <div class="wrap">
+      <div class="sec-head reveal"><span class="sec-num">07</span><h2>Is offline actually solved?</h2></div>
+      <p class="reveal">
+        For the buyer's side, <strong>yes</strong> — nothing about the Open Payments pivot touches that. The code is still
+        generated from a locally-held secret and the current time, no signal required, and the note-and-messenger flow is
+        unchanged.
+      </p>
+      <p class="reveal">
+        What was never offline, and still isn't, is the seller and the server — the seller's device needs connectivity to
+        relay the transaction and reach Open Payments, exactly the requirement we had before this pivot.
+      </p>
+
+      <div class="callout warn reveal">
+        <p style="margin:0">
+          Worth being precise about that boundary in the pitch: it's the <strong>buyer-side experience</strong> that's
+          offline-first, not the system end to end. That's still a strong, differentiated claim — most existing options
+          require both sides to be online and equipped — but it isn't "works with no internet anywhere," and a sharp judge
+          may probe exactly that line.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- COST -->
+  <section id="cost">
+    <div class="wrap">
+      <div class="sec-head reveal"><span class="sec-num">08</span><h2>Cost</h2></div>
+      <p class="reveal">
+        Real numbers: <strong>10MB of data costs around R2 and covers roughly 1,000 transactions</strong> — about R0.002
+        per transaction, a fifth of a cent. Move the slider to size your shop.
+      </p>
+
+      <div class="card reveal" style="margin-top:22px">
+        <div class="calc">
+          <div>
+            <div class="calc-slider-label"><span>Transactions per day</span><span id="txnLabel">33</span></div>
+            <input type="range" id="txnSlider" min="1" max="200" value="33">
+            <div class="calc-slider-label"><span>1</span><span>200</span></div>
+            <p style="font-size:13px;margin-top:16px">
+              At 33/day that's about 990 transactions a month. At 100/day, roughly 3,000.
+            </p>
+          </div>
+          <div class="calc-out">
+            <div class="calc-box"><div class="v" id="dataOut">9.9 MB</div><div class="k">Data / month</div></div>
+            <div class="calc-box"><div class="v" id="costOut">R1.98</div><div class="k">Cost / month</div></div>
+          </div>
+        </div>
+      </div>
+
+      <p class="reveal" style="margin-top:22px">
+        Either way, seller-side data cost is a rounding error next to the value of a single sale. The bigger cost story is
+        what Interledger is actually built to fix: the challenge brief itself notes that remittances into the region average
+        around <strong>12.7% in fees</strong>, against a G20 target of 3% — the kind of cost ILP exists to route around, by
+        moving value between ledgers directly instead of through several intermediaries each taking a cut.
+      </p>
+      <p class="reveal">
+        We don't have a verified fee figure for a spaza-shop-scale domestic transaction specifically, so the honest framing
+        is <em>"inherits the low-cost design goal of the rail it's built on,"</em> not a specific percentage we haven't
+        confirmed.
+      </p>
+    </div>
+  </section>
+
+  <!-- SIMPLICITY -->
+  <section id="simplicity">
+    <div class="wrap">
+      <div class="sec-head reveal"><span class="sec-num">09</span><h2>Where the simplicity lives</h2></div>
+      <p class="reveal">
+        Everything genuinely complicated — grants, quotes, wallet addresses, atomic balance checks — sits on our side and
+        the wallet providers' side. The buyer never sees any of it: write a code, hand it to someone, done. The seller's
+        experience: type a code and an amount, get a yes or no.
+      </p>
+      <div class="callout reveal">
+        <p style="margin:0">
+          That gap between "sophisticated backend" and "trivial front-of-house interaction" is worth stating outright in the
+          pitch — it's the direct answer to the UX &amp; Accessibility and simple-onboarding parts of the brief, and it's
+          true specifically because the complexity got pushed into a <strong>one-time setup step</strong> instead of every
+          transaction.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- QUESTIONS -->
+  <section id="questions">
+    <div class="wrap">
+      <div class="sec-head reveal"><span class="sec-num">10</span><h2>Open questions</h2></div>
+      <div class="reveal">
+        <div class="oq">
+          <div class="q">→</div>
+          <p><strong>Exact grant scoping</strong> — the precise API shape for a recurring/limited outgoing-payment grant
+          (interval, cap) needs confirming against the Open Payments docs or the hackathon Slack mentors; we're confident
+          the pattern exists (subscriptions are a first-class use case) but haven't pinned the exact request shape.</p>
+        </div>
+        <div class="oq">
+          <div class="q">→</div>
+          <p><strong>SMS vs. data</strong> for the seller-to-server leg — leaning data for the build; SMS/USSD is a strong
+          "scales to feature-phone merchants" talking point, precedented by M-Pesa, probably a slide rather than working
+          code this weekend.</p>
+        </div>
+        <div class="oq">
+          <div class="q">→</div>
+          <p><strong>Async settlement risk window</strong> — needs a concrete cap number before demo day, not just "small."</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div><!-- /panel-overview -->
+
+
+<!-- ============================================================
+     PANEL: LIVE DEMO
+     ============================================================ -->
+<div class="panel" id="panel-demo">
+
+  <div class="wrap">
+    <div class="demo-hero">
+      <div class="kicker">Live demo · two phones</div>
+      <h2>Buyer generates. Seller charges.</h2>
+      <p>
+        Both phones below are live. The buyer's code is a real <span class="kbd">HMAC-SHA256</span> of a demo secret and
+        the current time window — generated on-device, no network. Write it on the note, carry it to the seller, and
+        submit. Then <strong>try to spend it twice.</strong>
+      </p>
+      <div class="demo-tag">⏱ demo window compressed to 30s · production is 5–10 min</div>
+    </div>
+
+    <!-- STAGE -->
+    <div class="demo-stage" id="demoStage">
+
+      <!-- BUYER PHONE -->
+      <div class="phone-device" id="buyerPhone">
+        <div class="phone-frame">
+          <div class="phone-screen">
+            <div class="phone-island"></div>
+
+            <div class="status-bar">
+              <span>14:32</span>
+              <span class="sb-right">
+                <span class="sb-air">✈</span>
+                <span class="sb-bars off"><i></i><i></i><i></i><i></i></span>
+                <span class="sb-batt"><i></i></span>
+              </span>
+            </div>
+
+            <div class="app-top">
+              <div class="app-name">Spaza<span>Pay</span></div>
+              <div class="app-badge offline">OFFLINE</div>
+            </div>
+
+            <div class="app-body">
+              <div class="code-label">One-time payment code</div>
+              <div class="code-display" id="buyerCode">······</div>
+
+              <div class="cd-track"><div class="cd-fill" id="cdFill" style="width:100%"></div></div>
+              <div class="cd-text" id="cdText">expires in 30s</div>
+
+              <div class="mini-card">
+                <div class="mc-row"><span>Grant</span><b>R50 / txn</b></div>
+                <div class="mc-row"><span>Monthly cap</span><b>R500</b></div>
+                <div class="mc-row"><span>Spent this month</span><b id="buyerSpent">R0.00</b></div>
+              </div>
+
+              <div class="offline-note">
+                <span class="led"></span>
+                <span>Code generated on this device. No signal needed to create it.</span>
+              </div>
+
+              <button class="btn primary" id="writeNote" style="margin-bottom:18px">✎ Write on note</button>
+            </div>
+
+            <div class="home-bar"></div>
+          </div>
+        </div>
+        <div class="phone-caption"><span class="led off"></span> Buyer · no signal needed</div>
+      </div>
+
+      <!-- SELLER PHONE -->
+      <div class="phone-device" id="sellerPhone">
+        <div class="phone-frame">
+          <div class="phone-screen">
+            <div class="phone-island"></div>
+
+            <div class="status-bar">
+              <span>14:32</span>
+              <span class="sb-right">
+                <span class="sb-bars"><i></i><i></i><i></i><i></i></span>
+                <span class="sb-wifi">◗</span>
+                <span class="sb-batt"><i></i></span>
+              </span>
+            </div>
+
+            <div class="app-top">
+              <div class="app-name">Spaza<span>Merchant</span></div>
+              <div class="app-badge online">ONLINE</div>
+            </div>
+
+            <div class="app-body">
+              <div class="p-field">
+                <div class="p-label">Amount</div>
+                <div class="p-amount">
+                  <span class="r">R</span>
+                  <input id="amount" type="number" value="12.50" step="0.50" min="0.50">
+                </div>
+              </div>
+
+              <div class="chips">
+                <button class="chip" data-amt="5">R5</button>
+                <button class="chip" data-amt="10">R10</button>
+                <button class="chip" data-amt="20">R20</button>
+                <button class="chip" data-amt="50">R50</button>
+              </div>
+
+              <div class="p-field">
+                <div class="p-label">Payment code</div>
+                <div class="code-boxes" id="codeBoxes">
+                  <span></span><span></span><span></span>
+                  <span></span><span></span><span></span>
+                </div>
+              </div>
+
+              <button class="btn primary" id="submitBtn" disabled>Charge R12.50</button>
+              <div class="verdict" id="verdict">waiting for a note</div>
+
+              <div class="grant">
+                <div class="gl"><span>Standing grant</span><span id="grantPct">0%</span></div>
+                <div class="bar"><div id="grantFill"></div></div>
+                <div class="gl" style="margin-top:7px"><span>R50 / txn · R500 / mo</span><span id="grantText">R0.00 used</span></div>
+              </div>
+            </div>
+
+            <div class="home-bar"></div>
+          </div>
+        </div>
+        <div class="phone-caption"><span class="led"></span> Seller · always online</div>
+      </div>
+
+      <!-- FLYING NOTE -->
+      <div class="note-flyer" id="noteFlyer">
+        <div class="nf-label">Payment code</div>
+        <div class="nf-code" id="nfCode">000 000</div>
+        <div class="nf-foot">single use · expires fast</div>
+      </div>
+
+    </div><!-- /stage -->
+
+    <!-- CONTROLS -->
+    <div class="demo-actions">
+      <button class="btn ghost" id="resetBtn">↺ Reset demo</button>
+      <button class="btn ghost" id="clearLog">✕ Clear log</button>
+    </div>
+
+    <!-- CONSOLE -->
+    <div class="console-wrap" style="margin-top:26px">
+      <div class="console-bar">
+        <div class="dots"><i></i><i></i><i></i></div>
+        <span>our-server · payments.log</span>
+        <div class="spacer"><span class="rec"></span><span>live</span></div>
+      </div>
+      <div class="console" id="console"></div>
+    </div>
+
+    <div class="callout" style="margin-bottom:56px">
+      <p style="margin:0">
+        <strong>Three things to try:</strong> (1) submit a note and then submit the <em>same note again</em> — the server
+        rejects it as already spent. (2) Write a note, wait for the code to rotate twice, then submit — it falls outside
+        the validity window. (3) Push the amount above R50 — the standing grant cap rejects it before Open Payments is
+        ever called.
+      </p>
+    </div>
+  </div>
+
+</div><!-- /panel-demo -->
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div>Spaza Shop Payments — offline-capable, single-use payment codes settled over Open Payments.</div>
+    <div class="mono" style="font-size:12px">HMAC(secret, time_window) → 6 digits</div>
+  </div>
+</footer>
+
+<script>
+/* ============================================================
+   0. Utilities
+   ============================================================ */
+const $  = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+/* ============================================================
+   1. Tabs
+   ============================================================ */
+const tabs       = $$('.tab');
+const panels     = $$('.panel');
+const sublinksEl = $('#sublinks');
+
+function switchTab(name, scroll = true){
+  tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  panels.forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
+  sublinksEl.style.display = name === 'overview' ? '' : 'none';
+
+  if (scroll) window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  // kick the demo the first time it's opened
+  if (name === 'demo') bootDemo();
+  // re-arm reveals inside the newly visible panel
+  requestAnimationFrame(() => {
+    $$('.panel.active .reveal').forEach(el => {
+      if (el.getBoundingClientRect().top < window.innerHeight) el.classList.add('in');
+    });
+  });
+}
+
+tabs.forEach(t => t.addEventListener('click', () => switchTab(t.dataset.tab)));
+
+/* sublinks: jump into the overview tab, then scroll */
+$$('.sublinks a').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    const id = a.getAttribute('href');
+    const wasOverview = $('#panel-overview').classList.contains('active');
+    if (!wasOverview){
+      switchTab('overview', false);
+      requestAnimationFrame(() => {
+        const el = document.querySelector(id);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    } else {
+      const el = document.querySelector(id);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
+});
+
+/* deep link */
+if (location.hash === '#demo') switchTab('demo', false);
+
+/* ============================================================
+   2. Reveal on scroll
+   ============================================================ */
+const revealObserver = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting){ e.target.classList.add('in'); revealObserver.unobserve(e.target); }
+  });
+}, { threshold: 0.12, rootMargin: '0px 0px -60px 0px' });
+
+$$('.reveal').forEach((el, i) => {
+  el.style.transitionDelay = Math.min(i % 6, 4) * 55 + 'ms';
+  revealObserver.observe(el);
+});
+
+/* ============================================================
+   3. Sublink active state
+   ============================================================ */
+const subLinks = $$('.sublinks a');
+const sections = subLinks.map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+const navObserver = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting){
+      subLinks.forEach(a => a.classList.remove('active'));
+      const link = subLinks.find(a => a.getAttribute('href') === '#' + e.target.id);
+      if (link) link.classList.add('active');
+    }
+  });
+}, { rootMargin: '-20% 0px -70% 0px' });
+sections.forEach(s => navObserver.observe(s));
+
+/* ============================================================
+   4. Crypto — real HMAC-SHA256
+   ============================================================ */
+const DEMO = {
+  secret: 'spaza-demo-secret-7f3a9c',
+  windowMs: 30000,
+  spent: new Set(),
+  note: null,
+  monthSpent: 0,
+  txnCap: 50,
+  monthCap: 500,
+  busy: false,
+  booted: false,
+  transferring: false
+};
+
+const enc = new TextEncoder();
+let hmacKey = null;
+let cryptoAvailable = !!(window.crypto && window.crypto.subtle);
+
+async function getKey(){
+  if (hmacKey) return hmacKey;
+  hmacKey = await crypto.subtle.importKey(
+    'raw', enc.encode(DEMO.secret),
+    { name:'HMAC', hash:'SHA-256' }, false, ['sign']
+  );
+  return hmacKey;
+}
+function fallbackBytes(str){
+  let h1 = 0x811c9dc5 >>> 0, h2 = 0x1000193 >>> 0;
+  for (let i = 0; i < str.length; i++){
+    const c = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 16777619) >>> 0;
+    h2 = (Math.imul(h2 ^ c, 2246822519) + i) >>> 0;
+  }
+  return new Uint8Array([h1>>>24, h1>>>16, h1>>>8, h1, h2>>>24, h2>>>16, h2>>>8, h2]);
+}
+async function codeForWindow(w){
+  const msg = String(w);
+  let bytes;
+  if (cryptoAvailable){
+    try {
+      const key = await getKey();
+      const sig = await crypto.subtle.sign('HMAC', key, enc.encode(msg));
+      bytes = new Uint8Array(sig);
+    } catch(e){
+      cryptoAvailable = false;
+      bytes = fallbackBytes(DEMO.secret + ':' + msg);
+    }
+  } else {
+    bytes = fallbackBytes(DEMO.secret + ':' + msg);
+  }
+  let n = 0;
+  for (let i = 0; i < 4; i++) n = (n * 256 + bytes[i]) >>> 0;
+  return String(n % 1000000).padStart(6, '0');
+}
+
+/* ============================================================
+   5. DOM refs
+   ============================================================ */
+const buyerCodeEl = $('#buyerCode');
+const cdFill      = $('#cdFill');
+const cdText      = $('#cdText');
+const buyerSpent  = $('#buyerSpent');
+const writeBtn    = $('#writeNote');
+
+const sellerPhone = $('#sellerPhone');
+const buyerPhone  = $('#buyerPhone');
+const stage       = $('#demoStage');
+const codeBoxes   = $$('#codeBoxes span');
+const amountEl    = $('#amount');
+const submitBtn   = $('#submitBtn');
+const verdictEl   = $('#verdict');
+const grantFill   = $('#grantFill');
+const grantPct    = $('#grantPct');
+const grantText   = $('#grantText');
+
+const noteFlyer   = $('#noteFlyer');
+const nfCode      = $('#nfCode');
+
+const consoleEl   = $('#console');
+
+let currentWindow = Math.floor(Date.now() / DEMO.windowMs);
+const codeCache = {};
+
+/* ============================================================
+   6. Console logging
+   ============================================================ */
+function stamp(){
+  const d = new Date();
+  const p = (n, l = 2) => String(n).padStart(l, '0');
+  return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}.${p(d.getMilliseconds(),3)}`;
+}
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function log(msg, cls = 'info'){
+  const line = document.createElement('div');
+  line.className = 'cline ' + cls;
+  line.innerHTML = `<span class="ts">${stamp()}</span>  ${escapeHtml(msg)}`;
+  consoleEl.appendChild(line);
+  consoleEl.scrollTop = consoleEl.scrollHeight;
+  while (consoleEl.children.length > 110) consoleEl.removeChild(consoleEl.firstChild);
+}
+
+/* ============================================================
+   7. Buyer code + countdown
+   ============================================================ */
+async function refreshBuyerCode(force = false){
+  const w = Math.floor(Date.now() / DEMO.windowMs);
+  if (force || w !== currentWindow){
+    currentWindow = w;
+    const code = await codeForWindow(w);
+    codeCache[w] = code;
+    buyerCodeEl.textContent = code;
+    buyerCodeEl.classList.remove('flash');
+    void buyerCodeEl.offsetWidth;
+    buyerCodeEl.classList.add('flash');
+    if (DEMO.booted) log(`buyer: derived ${code} offline — HMAC(secret, window ${w})`, 'sys');
+  }
+}
+function tickCountdown(){
+  const remaining = DEMO.windowMs - (Date.now() % DEMO.windowMs);
+  cdFill.style.width = (remaining / DEMO.windowMs * 100) + '%';
+  cdText.textContent = `expires in ${(remaining/1000).toFixed(1)}s`;
+}
+
+/* ============================================================
+   8. Note transfer animation
+   ============================================================ */
+function centerOf(el){
+  const r = el.getBoundingClientRect();
+  const s = stage.getBoundingClientRect();
+  return { x: r.left - s.left + r.width/2, y: r.top - s.top + r.height/2 };
+}
+
+async function flyNote(code){
+  DEMO.transferring = true;
+  writeBtn.disabled = true;
+
+  const start = centerOf(buyerPhone);
+  const end   = centerOf(sellerPhone);
+
+  nfCode.textContent = code.slice(0,3) + ' ' + code.slice(3);
+
+  // phase 1 — appear over the buyer
+  noteFlyer.style.transition = 'none';
+  noteFlyer.style.left = start.x + 'px';
+  noteFlyer.style.top  = start.y + 'px';
+  noteFlyer.style.transform = 'translate(-50%,-50%) scale(.5) rotate(-10deg)';
+  noteFlyer.style.opacity = '0';
+  void noteFlyer.offsetWidth;
+
+  noteFlyer.style.transition = 'transform .42s cubic-bezier(.2,1.3,.4,1), opacity .3s';
+  noteFlyer.style.transform = 'translate(-50%,-50%) scale(1) rotate(-4deg)';
+  noteFlyer.style.opacity = '1';
+
+  buyerPhone.classList.add('pulse');
+  log(`buyer: wrote ${code} on paper note — messenger needs no phone`, 'sys');
+  await sleep(760);
+  buyerPhone.classList.remove('pulse');
+
+  // phase 2 — fly to seller
+  log('system: note carried to shop · buyer goes offline', 'sys');
+  noteFlyer.style.transition =
+    'left .9s cubic-bezier(.45,0,.2,1), top .9s cubic-bezier(.45,0,.2,1), ' +
+    'transform .9s cubic-bezier(.45,0,.2,1), opacity .55s .42s';
+  noteFlyer.style.left = end.x + 'px';
+  noteFlyer.style.top  = end.y + 'px';
+  noteFlyer.style.transform = 'translate(-50%,-50%) scale(.28) rotate(12deg)';
+  noteFlyer.style.opacity = '0';
+
+  await sleep(560);
+  sellerPhone.classList.add('pulse');
+
+  await sleep(420);
+  noteFlyer.style.opacity = '0';
+  sellerPhone.classList.remove('pulse');
+
+  // phase 3 — code "typed" into the seller's boxes
+  await typeCode(code);
+
+  DEMO.transferring = false;
+  writeBtn.disabled = false;
+  submitBtn.disabled = false;
+  setVerdict('note received at till', '');
+  log('seller: code received at till — ready to submit', 'info');
+}
+
+async function typeCode(code){
+  for (let i = 0; i < 6; i++){
+    codeBoxes[i].textContent = code[i];
+    codeBoxes[i].classList.add('filled');
+    await sleep(72);
+  }
+}
+function clearCodeBoxes(){
+  codeBoxes.forEach(b => { b.textContent = ''; b.classList.remove('filled'); });
+}
+
+/* ============================================================
+   9. Verdict + grant
+   ============================================================ */
+function setVerdict(text, cls){
+  verdictEl.textContent = text;
+  verdictEl.className = 'verdict' + (cls ? ' ' + cls : '');
+}
+function updateGrant(){
+  const pct = Math.min(100, DEMO.monthSpent / DEMO.monthCap * 100);
+  grantFill.style.width = pct + '%';
+  grantPct.textContent  = Math.round(pct) + '%';
+  grantText.textContent = `R${DEMO.monthSpent.toFixed(2)} used`;
+  buyerSpent.textContent = `R${DEMO.monthSpent.toFixed(2)}`;
+}
+function updateChargeLabel(){
+  const a = parseFloat(amountEl.value) || 0;
+  submitBtn.textContent = `Charge R${a.toFixed(2)}`;
+}
+
+/* ============================================================
+   10. Server verification
+   ============================================================ */
+async function verifyCode(code){
+  const w = Math.floor(Date.now() / DEMO.windowMs);
+  const validNow = codeCache[w]     || (codeCache[w]     = await codeForWindow(w));
+  const validPrev = codeCache[w-1]  || (codeCache[w-1]  = await codeForWindow(w-1));
+
+  if (DEMO.spent.has(code)){
+    return { ok:false, reason:`code ${code} already spent — replay rejected` };
+  }
+  if (code === validNow || code === validPrev){
+    return { ok:true, window: code === validNow ? w : w-1 };
+  }
+  if (DEMO.note && DEMO.note.code === code){
+    return { ok:false, reason:`code ${code} outside validity window (issued in window ${DEMO.note.window}, now ${w})` };
+  }
+  return { ok:false, reason:`code ${code} not authentic — HMAC mismatch` };
+}
+
+/* ============================================================
+   11. Submit flow
+   ============================================================ */
+submitBtn.addEventListener('click', async () => {
+  if (DEMO.busy || DEMO.transferring || !DEMO.note) return;
+  DEMO.busy = true;
+  submitBtn.disabled = true;
+  writeBtn.disabled = true;
+  setVerdict('checking…', 'pending');
+
+  const amount = parseFloat(amountEl.value) || 0;
+  const code = DEMO.note.code;
+
+  log(`seller → server: POST /pay { code: "${code}", amount: R${amount.toFixed(2)} }`, 'info');
+  await sleep(420);
+
+  // 1. authenticity + replay
+  const v = await verifyCode(code);
+  if (!v.ok){
+    log('✕ ' + v.reason, 'err');
+    log('server → seller: DECLINE', 'err');
+    setVerdict('declined', 'no');
+    finish(); return;
+  }
+  log(`✓ code authentic — matches HMAC(secret, window ${v.window})`, 'ok');
+  await sleep(300);
+  log('✓ not previously spent', 'ok');
+  await sleep(280);
+
+  // 2. grant caps
+  if (amount > DEMO.txnCap){
+    log(`✕ amount R${amount.toFixed(2)} exceeds per-transaction cap R${DEMO.txnCap}`, 'err');
+    log('server → seller: DECLINE', 'err');
+    setVerdict('declined — over cap', 'no');
+    finish(); return;
+  }
+  if (DEMO.monthSpent + amount > DEMO.monthCap){
+    log(`✕ would exceed monthly grant cap R${DEMO.monthCap}`, 'err');
+    log('server → seller: DECLINE', 'err');
+    setVerdict('declined — over cap', 'no');
+    finish(); return;
+  }
+  log(`✓ within standing grant (R${DEMO.txnCap}/txn · R${DEMO.monthCap}/month)`, 'ok');
+  await sleep(280);
+
+  // 3. mark spent
+  DEMO.spent.add(code);
+  log(`• code ${code} marked SPENT — single use enforced`, 'warn');
+  await sleep(300);
+
+  // 4. Open Payments
+  log('→ Open Payments: POST /incoming-payments  (seller side, non-interactive)', 'op');
+  await sleep(520);
+  log('→ Open Payments: POST /quotes            (buyer side, non-interactive)', 'op');
+  await sleep(520);
+  log('→ Open Payments: POST /outgoing-payments (buyer side, standing grant)', 'op');
+  await sleep(760);
+  log('✓ 201 Created — payment executed', 'ok');
+  await sleep(220);
+  log('server → seller: APPROVE (settlement a beat behind)', 'ok');
+
+  DEMO.monthSpent += amount;
+  updateGrant();
+  setVerdict(`approved · R${amount.toFixed(2)}`, 'ok');
+  sellerPhone.classList.add('pulse');
+  setTimeout(() => sellerPhone.classList.remove('pulse'), 700);
+  finish();
+
+  function finish(){
+    DEMO.busy = false;
+    submitBtn.disabled = false;
+    writeBtn.disabled = false;
+  }
+});
+
+/* ============================================================
+   12. Amount chips + label
+   ============================================================ */
+amountEl.addEventListener('input', updateChargeLabel);
+$$('.chip').forEach(c => {
+  c.addEventListener('click', () => {
+    amountEl.value = parseFloat(c.dataset.amt).toFixed(2);
+    updateChargeLabel();
+  });
+});
+
+/* ============================================================
+   13. Write-note button
+   ============================================================ */
+writeBtn.addEventListener('click', async () => {
+  if (DEMO.busy || DEMO.transferring) return;
+
+  const w = Math.floor(Date.now() / DEMO.windowMs);
+  const code = codeCache[w] || (codeCache[w] = await codeForWindow(w));
+  DEMO.note = { code, window: w };
+
+  clearCodeBoxes();
+  setVerdict('waiting…', 'pending');
+  await flyNote(code);
+});
+
+/* ============================================================
+   14. Reset / clear
+   ============================================================ */
+$('#resetBtn').addEventListener('click', () => {
+  DEMO.spent.clear();
+  DEMO.note = null;
+  DEMO.monthSpent = 0;
+  DEMO.busy = false;
+  DEMO.transferring = false;
+  clearCodeBoxes();
+  updateGrant();
+  updateChargeLabel();
+  submitBtn.disabled = true;
+  writeBtn.disabled = false;
+  setVerdict('waiting for a note', '');
+  noteFlyer.style.opacity = '0';
+  consoleEl.innerHTML = '';
+  log('system: demo reset — spent-code set cleared', 'sys');
+  refreshBuyerCode(true);
+});
+$('#clearLog').addEventListener('click', () => {
+  consoleEl.innerHTML = '';
+  log('system: log cleared', 'sys');
+});
+
+/* ============================================================
+   15. Boot the demo (lazily, first time the tab opens)
+   ============================================================ */
+function bootDemo(){
+  if (DEMO.booted) return;
+  DEMO.booted = true;
+
+  if (!cryptoAvailable){
+    log('note: crypto.subtle unavailable (insecure context) — using fallback digest', 'warn');
+  }
+  log('system: buyer registered · shared secret stored · standing grant active', 'sys');
+  log('system: grant scoped to R50/txn, R500/month', 'sys');
+
+  updateGrant();
+  updateChargeLabel();
+  refreshBuyerCode(true);
+  tickCountdown();
+  setInterval(tickCountdown, 100);
+  setInterval(() => refreshBuyerCode(false), 250);
+}
+
+/* ============================================================
+   16. Sequence diagram
+   ============================================================ */
+const SEQ_COLS = ["Buyer's app", "Paper note", "Seller's device", "Our server", "Open Payments"];
+const seqItems = [
+  { t:'phase', label:'Once, while the buyer has signal' },
+  { t:'msg', from:0, to:4, label:'Request interactive grant (R50/txn, R500/month)', kind:'req' },
+  { t:'msg', from:4, to:0, label:"Buyer consents via their wallet's own screen", kind:'res' },
+  { t:'msg', from:0, to:3, label:'Register — wallet address + shared secret', kind:'req' },
+
+  { t:'phase', label:'Every purchase' },
+  { t:'msg', from:0, to:0, label:'Derive short-lived one-time code from secret + time, offline', kind:'self' },
+  { t:'msg', from:0, to:1, label:'Write code on note', kind:'req' },
+  { t:'msg', from:1, to:2, label:'Carried by messenger — no phone needed', kind:'req' },
+  { t:'msg', from:2, to:3, label:'Forward { code, amount }', kind:'req' },
+  { t:'msg', from:3, to:3, label:'Verify code · confirm unused · mark spent', kind:'self' },
+  { t:'msg', from:3, to:4, label:'Incoming payment + quote + outgoing payment (standing grant)', kind:'req' },
+  { t:'msg', from:4, to:3, label:'Payment executed', kind:'res' },
+  { t:'msg', from:3, to:2, label:'Approve / decline', kind:'res' }
+];
+
+const seqHead = $('#seqHead');
+const seqBody = $('#seqBody');
+const seqEl   = $('#seq');
+const PHASE_H = 40, MSG_H = 56;
+
+SEQ_COLS.forEach(name => {
+  const d = document.createElement('div');
+  d.textContent = name;
+  seqHead.appendChild(d);
+});
+SEQ_COLS.forEach((_, i) => {
+  const l = document.createElement('div');
+  l.className = 'lifeline';
+  l.style.left = ((i + 0.5) / SEQ_COLS.length * 100) + '%';
+  seqBody.appendChild(l);
+});
+
+let y = 12;
+const seqNodes = [];
+seqItems.forEach(item => {
+  if (item.t === 'phase'){
+    const el = document.createElement('div');
+    el.className = 'seq-phase';
+    el.style.top = y + 'px';
+    el.innerHTML = `<span>${item.label}</span>`;
+    seqBody.appendChild(el);
+    seqNodes.push({ el, type:'phase' });
+    y += PHASE_H;
+    return;
+  }
+  const el = document.createElement('div');
+  el.className = 'seq-msg';
+  el.style.top = y + 'px';
+  const center = i => ((i + 0.5) / SEQ_COLS.length) * 100;
+
+  if (item.from === item.to){
+    el.classList.add('self');
+    const left = center(item.from);
+    el.innerHTML = `
+      <div class="loop" style="left:calc(${left}% + 2px)"></div>
+      <div class="seq-label" style="left:calc(${left}% + 54px); top:-4px">${item.label}</div>`;
+  } else {
+    const a = center(item.from), b = center(item.to);
+    const l = Math.min(a,b), w = Math.abs(b-a);
+    const fwd = item.to > item.from;
+    el.classList.add(item.kind === 'res' ? 'rev' : 'fwd');
+    el.innerHTML = `
+      <div class="seq-label" style="left:${l}%; width:${w}%">${item.label}</div>
+      <div class="seq-line" style="left:${l}%; width:${w}%"><div class="seq-dot"></div></div>
+      <div class="arrow" style="${fwd ? 'left:calc(' + (l+w) + '% - 1px)' : 'left:' + l + '%'}"></div>`;
+  }
+  seqBody.appendChild(el);
+  seqNodes.push({ el, type:'msg', item });
+  y += MSG_H;
+});
+seqBody.style.height = (y + 10) + 'px';
+
+function hotCol(index){
+  const heads = seqHead.children;
+  for (let i = 0; i < heads.length; i++) heads[i].classList.remove('hot');
+  if (index == null) return;
+  (Array.isArray(index) ? index : [index]).forEach(i => heads[i] && heads[i].classList.add('hot'));
+}
+
+let seqRunning = false;
+async function playSequence(){
+  if (seqRunning) return;
+  seqRunning = true;
+  seqNodes.forEach(n => n.el.classList.remove('on'));
+  hotCol(null);
+  for (const node of seqNodes){
+    if (node.type === 'phase'){
+      node.el.classList.add('on');
+      hotCol(null);
+      await sleep(480);
+      continue;
+    }
+    const it = node.item;
+    hotCol(it.from === it.to ? it.from : [it.from, it.to]);
+    node.el.classList.add('on');
+    await sleep(it.from === it.to ? 620 : 700);
+  }
+  hotCol(null);
+  seqRunning = false;
+}
+$('#seqPlay').addEventListener('click', playSequence);
+
+const seqObserver = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting){ playSequence(); seqObserver.disconnect(); } });
+}, { threshold: 0.25 });
+seqObserver.observe(seqEl);
+
+/* ============================================================
+   17. Decision flow
+   ============================================================ */
+const flowSteps = [
+  { label:'Buyer generates one-time code offline', n:'step' },
+  { label:'Code written on note, carried to shop', n:'step' },
+  { label:'Seller enters code + amount', n:'step' },
+  { label:'Code valid and unused?', n:'decision', no:'No → Decline' },
+  { label:'Mark code as spent', n:'step' },
+  { label:'Within standing grant limit?', n:'decision', no:'No → Decline' },
+  { label:'Quote + outgoing payment via Open Payments', n:'step' },
+  { label:'Approve — seller notified', n:'step' }
+];
+const flowEl = $('#flow');
+const railFill = $('#railFill');
+const flowNodes = [];
+
+flowSteps.forEach((s, i) => {
+  const step = document.createElement('div');
+  step.className = 'flow-step' + (s.n === 'decision' ? ' decision' : '');
+  const row = document.createElement('div');
+  row.className = 'flow-row';
+
+  const node = document.createElement('div');
+  node.className = 'flow-node';
+  node.innerHTML = `<span class="n">${String(i+1).padStart(2,'0')}</span>${s.label}`;
+  row.appendChild(node);
+
+  if (s.n === 'decision'){
+    const br = document.createElement('div');
+    br.className = 'flow-branch';
+    br.textContent = s.no;
+    row.appendChild(br);
+    step._branch = br;
+  } else {
+    const sp = document.createElement('div');
+    sp.className = 'flow-branch yes';
+    sp.style.visibility = 'hidden';
+    row.appendChild(sp);
+  }
+  step.appendChild(row);
+  flowEl.appendChild(step);
+  flowNodes.push(step);
+});
+
+async function playFlow(){
+  flowNodes.forEach(n => n.classList.remove('on'));
+  railFill.style.height = '0%';
+  await sleep(120);
+  const total = flowNodes.length;
+  for (let i = 0; i < total; i++){
+    const step = flowNodes[i];
+    step.classList.add('on');
+    railFill.style.height = ((i+1)/total*100) + '%';
+    if (step._branch){
+      await sleep(300);
+      step._branch.classList.add('on');
+      await sleep(430);
+    } else {
+      await sleep(360);
+    }
+  }
+}
+const flowObserver = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting){ playFlow(); flowObserver.disconnect(); } });
+}, { threshold: 0.2 });
+flowObserver.observe(flowEl);
+
+/* ============================================================
+   18. Cost calculator
+   ============================================================ */
+const slider   = $('#txnSlider');
+const txnLabel = $('#txnLabel');
+const dataOut  = $('#dataOut');
+const costOut  = $('#costOut');
+
+function updateCost(){
+  const perDay   = parseInt(slider.value, 10);
+  const perMonth = perDay * 30;
+  const mb   = perMonth * 10 / 1000;   // 10MB per 1,000 transactions
+  const cost = perMonth / 1000 * 2;    // R2 per 1,000 transactions
+  txnLabel.textContent = perDay;
+  dataOut.textContent  = (mb < 10 ? mb.toFixed(1) : Math.round(mb)) + ' MB';
+  costOut.textContent  = 'R' + (cost < 10 ? cost.toFixed(2) : cost.toFixed(1));
+}
+slider.addEventListener('input', updateCost);
+updateCost();
+
+/* ============================================================
+   19. Open Payments step pulse
+   ============================================================ */
+const oqItems = $$('#opSteps .oq');
+const oqObserver = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting){
+      oqItems.forEach((el, i) => {
+        setTimeout(() => {
+          el.style.transition = 'transform .5s cubic-bezier(.2,.8,.3,1), border-color .5s';
+          el.style.transform = 'translateX(6px)';
+          el.style.borderColor = 'var(--accent-dim)';
+          setTimeout(() => {
+            el.style.transform = '';
+            el.style.borderColor = 'var(--line)';
+          }, 620);
+        }, i * 260);
+      });
+      oqObserver.disconnect();
+    }
+  });
+}, { threshold: 0.4 });
+if (oqItems.length) oqObserver.observe($('#opSteps'));
+
+/* ============================================================
+   20. Keyboard shortcut: press "D" for demo, "O" for overview
+   ============================================================ */
+document.addEventListener('keydown', e => {
+  if (e.target.matches('input, textarea')) return;
+  if (e.key === 'd' || e.key === 'D') switchTab('demo');
+  if (e.key === 'o' || e.key === 'O') switchTab('overview');
+});
+</script>
+
+</body>
+</html>
