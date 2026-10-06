@@ -32,89 +32,124 @@
     <div class="hero-meta">
       <span>PAYER CAN BE OFFLINE</span>
       <span>NO SHOP-BY-SHOP PAIRING</span>
-      <span>10–30 MINUTE CODES</span>
-      <span>SINGLE-USE REDEMPTION</span>
+      <span>30 MIN MAX</span>
+      <span>SINGLE USE</span>
     </div>
   </section>
 
   <section class="flow">
     <div class="flow-inner shell">
-      <article class="flow-step"><span class="n">01</span><strong>Set up once</strong><p>Payer connects Atomic Commits to their Open Payments wallet while online.</p></article>
-      <article class="flow-step"><span class="n">02</span><strong>Generate offline</strong><p>The payer device derives a short code locally from its shared secret and current time window.</p></article>
-      <article class="flow-step"><span class="n">03</span><strong>Merchant redeems</strong><p>The shop sends payer ID, code, amount and its own wallet address.</p></article>
-      <article class="flow-step"><span class="n">04</span><strong>Atomic verifies + pays</strong><p>Replay and policy checks run first; Open Payments handles the actual transfer.</p></article>
+      <article class="flow-step"><span class="n">01</span><strong>Set up once</strong><p>Connect Atomic Commits to an Open Payments wallet while online.</p></article>
+      <article class="flow-step"><span class="n">02</span><strong>Generate offline</strong><p>The payer phone derives a short code locally from its secret and time.</p></article>
+      <article class="flow-step"><span class="n">03</span><strong>Merchant redeems</strong><p>The shop enters the payer ID, code and amount.</p></article>
+      <article class="flow-step"><span class="n">04</span><strong>Verify + settle</strong><p>Atomic Commits checks the code, blocks replay and sends the payment.</p></article>
     </div>
   </section>
 
   <section class="section shell">
     <div class="section-head">
-      <div><p class="kicker">Interactive sandbox</p><h2>Run the payment flow.</h2></div>
-      <p>Everything below is a client-side prototype. The Open Payments calls are simulated, but the code rotation, validity checks, amount limits and replay rejection are live.</p>
+      <div><p class="kicker">Interactive demo</p><h2>Try the actual flow.</h2></div>
+      <p>The phone UI is the product. The trace underneath is there so you can see what the prototype is doing technically.</p>
     </div>
 
-    <div class="demo-shell">
-      <div class="demo-bar">
-        <div class="window-dots"><i></i><i></i><i></i></div>
-        <div class="demo-title">atomic-commits / sandbox</div>
-        <div class="demo-state">BUYER OFFLINE · MERCHANT ONLINE</div>
-      </div>
-      <div class="stage-nav">
-        <div class="active">1 · Generate</div>
-        <div>2 · Redeem</div>
-        <div>3 · Settle</div>
-      </div>
+    <div class="phone-demo">
+      <div class="phone-column">
+        <div class="phone-label"><span>PAYER</span><small>offline after setup</small></div>
+        <div class="phone">
+          <div class="phone-shell">
+            <div class="island"></div>
+            <div class="phone-status"><span>09:41</span><span>▮▮▮ ︎⌁ 91%</span></div>
+            <div class="phone-screen payer-screen">
+              <div class="app-nav">
+                <div class="app-mark">AC</div>
+                <div class="signal off"><i></i> Offline</div>
+              </div>
 
-      <div class="demo-main">
-        <section class="app-pane">
-          <div class="role-line">
-            <div><h3>Payer device</h3><p class="sub">No network required after setup.</p></div>
-            <span class="status off">OFFLINE</span>
+              <div class="screen-copy">
+                <span class="screen-eyebrow">PAYMENT CODE</span>
+                <h3>Ready to use offline</h3>
+                <p>Your phone can create this without contacting Atomic Commits.</p>
+              </div>
+
+              <div class="payment-code-card">
+                <div class="payer-id">PAYER ID <strong>7K3M</strong></div>
+                <div class="digits" id="buyerCode">------</div>
+                <div class="timer"><div id="timerFill"></div></div>
+                <div class="timer-text"><span id="timerText">generating…</span><span>demo rotates every 15s</span></div>
+              </div>
+
+              <div class="policy-card">
+                <div><span>MAX PAYMENT</span><strong>R50.00</strong></div>
+                <div><span>VALIDITY</span><strong>≤ 30 min</strong></div>
+                <div><span>USES</span><strong>1</strong></div>
+              </div>
+
+              <button class="phone-button accent" id="sendBtn">Share payment code</button>
+              <p class="phone-help">Show it, send it, dictate it, or write it down.</p>
+            </div>
+            <div class="home-indicator"></div>
           </div>
-
-          <div class="code-card">
-            <div class="label">Current authorization</div>
-            <div class="code-row"><span class="alias">7K3M</span><span class="big-code" id="buyerCode">------</span></div>
-            <div class="timer"><div id="timerFill"></div></div>
-            <div class="timer-text"><span id="timerText">generating…</span><span>demo rotation: 15s</span></div>
-          </div>
-
-          <div class="mini-note"><strong>Maximum lifetime: 30 minutes.</strong> Production codes rotate every 5 minutes; the server accepts the current window plus the previous five. A specific code therefore remains usable for roughly 25–30 minutes, depending on when it was generated.</div>
-          <div class="actions" style="margin-top:15px">
-            <button class="btn gold" id="sendBtn">Send code to merchant →</button>
-          </div>
-        </section>
-
-        <div class="transport"><div class="transport-bubble">→</div></div>
-
-        <section class="app-pane">
-          <div class="role-line">
-            <div><h3>Merchant</h3><p class="sub">Connected to Atomic Commits.</p></div>
-            <span class="status on">ONLINE</span>
-          </div>
-
-          <div class="inline-fields">
-            <div class="field"><label for="payerId">Payer ID</label><input id="payerId" placeholder="7K3M"></div>
-            <div class="field"><label for="merchantCode">Authorization code</label><input id="merchantCode" maxlength="6" inputmode="numeric" placeholder="000000"></div>
-          </div>
-          <div class="field"><label for="amount">Amount</label><input id="amount" type="number" min="0" step=".50" value="24.50"></div>
-          <div class="field"><label for="wallet">Merchant wallet</label><input id="wallet" value="$mamas-spaza.example"></div>
-
-          <div class="actions">
-            <button class="btn" id="redeemBtn">Redeem</button>
-            <button class="btn light" id="replayBtn" disabled>Replay same code</button>
-          </div>
-          <div class="verdict" id="verdict">Waiting for a code.</div>
-        </section>
-      </div>
-
-      <div class="console-wrap">
-        <div class="console">
-          <div class="console-head"><span>REQUEST TRACE</span><span>SIMULATED OPEN PAYMENTS</span></div>
-          <div id="console"></div>
         </div>
+      </div>
+
+      <div class="handoff">
+        <div class="handoff-line"></div>
+        <div class="handoff-chip" id="handoffChip">
+          <span>7K3M</span>
+          <strong>••••••</strong>
+        </div>
+        <p>No shared secret leaves the payer device.</p>
+      </div>
+
+      <div class="phone-column">
+        <div class="phone-label"><span>MERCHANT</span><small>connected</small></div>
+        <div class="phone">
+          <div class="phone-shell">
+            <div class="island"></div>
+            <div class="phone-status"><span>09:41</span><span>▮▮▮ ︎⌁ 86%</span></div>
+            <div class="phone-screen merchant-screen">
+              <div class="app-nav">
+                <div class="app-mark">AC</div>
+                <div class="signal on"><i></i> Online</div>
+              </div>
+
+              <div class="screen-copy">
+                <span class="screen-eyebrow">NEW PAYMENT</span>
+                <h3>Enter payer code</h3>
+                <p>The merchant only needs the payer ID, six digits and the amount.</p>
+              </div>
+
+              <div class="merchant-fields">
+                <label><span>Payer ID</span><input id="payerId" placeholder="7K3M"></label>
+                <label><span>Code</span><input id="merchantCode" maxlength="6" inputmode="numeric" placeholder="000000"></label>
+                <label class="amount-field"><span>Amount</span><div><b>R</b><input id="amount" type="number" min="0" step=".50" value="24.50"></div></label>
+                <label><span>Merchant wallet</span><input id="wallet" value="$mamas-spaza.example"></label>
+              </div>
+
+              <button class="phone-button" id="redeemBtn">Verify & pay</button>
+              <button class="replay-link" id="replayBtn" disabled>Try the same code again</button>
+
+              <div class="receipt" id="verdict">
+                <span class="receipt-dot"></span>
+                <div><strong>Waiting for a code</strong><small>Share one from the payer phone.</small></div>
+              </div>
+            </div>
+            <div class="home-indicator"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="trace-panel">
+      <div class="trace-head">
+        <div><span class="trace-kicker">SERVER TRACE</span><strong>What happened after the merchant tapped pay</strong></div>
+        <span class="trace-tag">SIMULATED OPEN PAYMENTS</span>
+      </div>
+      <div class="trace-grid">
+        <div id="console" class="trace-log"></div>
         <aside class="permission">
           <h3>Open Payments permission</h3>
-          <p id="grantCopy">The payer approved Atomic Commits to initiate future outgoing payments up to R500 per month during onboarding.</p>
+          <p>The payer approved Atomic Commits once during onboarding to initiate future outgoing payments up to R500 per month.</p>
           <div class="grant-row"><span id="grantUsed">R0.00 used</span><span>R500 monthly limit</span></div>
           <div class="meter"><div id="grantFill"></div></div>
         </aside>
@@ -123,24 +158,23 @@
 
     <div class="explainer">
       <article class="explain-card">
-        <p class="kicker">What “standing permission” means</p>
-        <h3>The payer does not approve every shop or every payment.</h3>
+        <p class="kicker">What that permission means</p>
+        <h3>The payer does not approve every shop or every purchase.</h3>
         <div class="grant-flow">
-          <div class="grow"><strong>During setup</strong><p>Atomic Commits requests an interactive Open Payments outgoing-payment grant. The payer is redirected to their provider and explicitly approves a spending limit, for example R500 per month.</p></div>
-          <div class="grow"><strong>After approval</strong><p>Atomic Commits receives an access token tied to that grant. While it remains valid and within its limit, the app can create outgoing payments without asking the payer to approve each one again.</p></div>
-          <div class="grow"><strong>At the shop</strong><p>The merchant is not pre-selected. When a valid offline code is redeemed, the merchant's wallet becomes the recipient for that transaction.</p></div>
+          <div class="grow"><strong>Setup</strong><p>Atomic Commits requests an interactive outgoing-payment grant. The payer is redirected to their provider and approves a spending limit, for example R500 per month.</p></div>
+          <div class="grow"><strong>After consent</strong><p>Atomic Commits receives an access token tied to that grant. While the grant is valid and within its limit, later outgoing payments do not need another payer approval screen.</p></div>
+          <div class="grow"><strong>At redemption</strong><p>The shop is chosen later. Its wallet address is supplied when the merchant redeems a valid offline code.</p></div>
         </div>
       </article>
 
       <article class="explain-card">
-        <p class="kicker">Two different limits</p>
-        <h3>Open Payments controls the wallet permission. Atomic Commits controls each offline code.</h3>
+        <p class="kicker">Two layers of limits</p>
+        <h3>The wallet grant and the offline code are not the same thing.</h3>
         <div class="grant-flow">
-          <div class="grow"><strong>Open Payments</strong><p>Example: allow Atomic Commits to debit up to R500 in the current monthly interval.</p></div>
-          <div class="grow"><strong>Atomic Commits</strong><p>Example: max R50 per offline authorization, valid for 10 or 30 minutes, single use, rate-limited verification.</p></div>
-          <div class="grow"><strong>Why split them?</strong><p>The user consents to the broad wallet permission once. Our app can enforce stricter rules without pretending those per-code rules are native Open Payments grant fields.</p></div>
+          <div class="grow"><strong>Open Payments</strong><p>Example: Atomic Commits may initiate up to R500 in outgoing payments during the monthly interval.</p></div>
+          <div class="grow"><strong>Atomic Commits</strong><p>Example: each offline authorization is capped at R50, expires after at most 30 minutes and may only be redeemed once.</p></div>
+          <div class="grow"><strong>Reason</strong><p>The payer can approve the broad wallet permission once while our app applies tighter rules to every offline purchase.</p></div>
         </div>
-        <div class="note-blue">Changing a local per-code limit can stay inside Atomic Commits. Increasing the underlying Open Payments grant would require the appropriate consent flow again.</div>
       </article>
     </div>
   </section>
@@ -150,23 +184,23 @@
       <div><p class="kicker">One setup, many merchants</p><h2>No payer↔shop pairing.</h2></div>
       <div class="setup-list">
         <article class="setup-item"><span>01</span><div><h3>Payer registers with Atomic Commits</h3><p>The payer device and Atomic Commits server establish the shared secret used to verify future offline codes.</p></div></article>
-        <article class="setup-item"><span>02</span><div><h3>The short payer ID selects the right secret</h3><p>When a merchant submits <span class="mono">7K3M 482193</span>, the server uses <span class="mono">7K3M</span> to locate that payer's verification record. It does not search every user's secret.</p></div></article>
-        <article class="setup-item"><span>03</span><div><h3>The merchant supplies the recipient wallet</h3><p>The payer did not need to know or pair with that shop in advance. The merchant includes its own wallet address when redeeming the code.</p></div></article>
-        <article class="setup-item"><span>04</span><div><h3>Atomic Commits verifies before payment</h3><p>The server checks authenticity, validity window, replay state and the app's transaction policy, then uses the existing Open Payments grant to execute the transfer.</p></div></article>
+        <article class="setup-item"><span>02</span><div><h3>The payer ID selects the right secret</h3><p>When a merchant submits <span class="mono">7K3M 482193</span>, the server uses <span class="mono">7K3M</span> to locate the payer's verification record.</p></div></article>
+        <article class="setup-item"><span>03</span><div><h3>The merchant supplies the recipient wallet</h3><p>The payer did not need to know or pair with that shop in advance. The shop supplies its wallet at redemption.</p></div></article>
+        <article class="setup-item"><span>04</span><div><h3>Atomic Commits verifies before payment</h3><p>The server checks authenticity, time validity, replay state and transaction limits, then executes the payment using the existing grant.</p></div></article>
       </div>
     </div>
   </section>
 
   <section class="section shell">
     <div class="section-head">
-      <div><p class="kicker">Implementation notes</p><h2>What the short code actually proves.</h2></div>
-      <p>The human code is intentionally small. The payer ID provides the namespace; the time-derived value provides the offline proof; the server provides replay protection and policy enforcement.</p>
+      <div><p class="kicker">Implementation notes</p><h2>How the short code works.</h2></div>
+      <p>The payer ID tells the server which secret to use. The six-digit value proves the payer device knows that secret for a recent 5-minute time window.</p>
     </div>
 
     <div class="tech-grid">
       <article class="tech-card">
-        <h3>Code derivation</h3>
-        <p>The payer and server share a secret established during setup. The device can therefore derive a code with no network request.</p>
+        <h3>Generated locally</h3>
+        <p>No server request is required to create a code after setup.</p>
         <div class="code-block">timeWindow = floor(now / 5 minutes)
 
 code = truncate6(
@@ -176,22 +210,22 @@ code = truncate6(
 
 display → 7K3M 482193</div>
         <div class="security">
-          <div><strong>PAYER ID</strong><span>Identifies which stored secret the server should verify against.</span></div>
-          <div><strong>6 DIGITS</strong><span>Easy to type or dictate; protected by expiry, attempt limits and transaction caps.</span></div>
-          <div><strong>SHARED SECRET</strong><span>Never given to the merchant and never carried in the code.</span></div>
+          <div><strong>PAYER ID</strong><span>Selects the payer record and stored verification secret.</span></div>
+          <div><strong>6 DIGITS</strong><span>Easy to type or dictate; protected by expiry, rate limits and transaction caps.</span></div>
+          <div><strong>SECRET</strong><span>Never sent to the merchant.</span></div>
         </div>
       </article>
 
       <article class="tech-card">
-        <h3>Validity without server-minted codes</h3>
-        <p>The code is still generated locally. The server changes how many recent 5-minute windows it is willing to accept.</p>
+        <h3>Up to 30 minutes</h3>
+        <p>The phone derives a fresh value every five minutes. The server can accept a bounded set of recent windows.</p>
         <div class="window-table">
-          <div class="window-row"><strong>ROTATION</strong><span>The payer derives a fresh display code every 5 minutes. No server request is needed to generate it.</span></div>
-          <div class="window-row"><strong>30 MIN MAX</strong><span>The verifier checks the current 5-minute window and the previous five. Because rotation happens on fixed boundaries, any one code lives for about 25–30 minutes.</span></div>
-          <div class="window-row"><strong>REDEEM</strong><span>Once a matching code is accepted, claim it in a uniqueness-constrained record before attempting payment.</span></div>
-          <div class="window-row"><strong>REPLAY</strong><span>A later attempt using the same payer ID + code is rejected as already spent.</span></div>
+          <div class="window-row"><strong>ROTATE</strong><span>Fresh code every 5 minutes on the payer device.</span></div>
+          <div class="window-row"><strong>VERIFY</strong><span>For a 30-minute maximum, check the current window and previous five.</span></div>
+          <div class="window-row"><strong>CLAIM</strong><span>When a code passes verification, record it as used before attempting the payment.</span></div>
+          <div class="window-row"><strong>REPLAY</strong><span>Any later attempt with the same payer ID + code is rejected.</span></div>
         </div>
-        <div class="note-blue">The 15-second rotation in the sandbox only makes the mechanism visible during a demo. Production timing would use the 5-minute windows above.</div>
+        <div class="note-blue">The demo rotates every 15 seconds only so the behavior is visible while presenting.</div>
       </article>
     </div>
   </section>
@@ -200,20 +234,20 @@ display → 7K3M 482193</div>
     <div class="shell">
       <div class="section-head">
         <div><p class="kicker">Payload estimate</p><h2>Keep the low-data claim measurable.</h2></div>
-        <p>This calculator is explicitly an application-payload estimate. It does not claim to include TLS handshakes, headers, retransmissions or other network overhead.</p>
+        <p>This calculator is an application-payload estimate, not total mobile network usage.</p>
       </div>
       <div class="cost-box">
         <div>
           <div class="range-head"><span>Transactions per day</span><strong id="txnLabel">100</strong></div>
           <input id="txnSlider" type="range" min="10" max="1000" step="10" value="100">
-          <p class="footnote">Assumption used in the prototype: 10 MB of application payload per 1,000 transactions; 10 MB bundle cost = R2.</p>
+          <p class="footnote">Prototype assumption: 10 MB of application payload per 1,000 transactions; 10 MB bundle cost = R2.</p>
         </div>
         <div>
           <div class="calc-grid">
             <div class="calc"><strong id="dataOut">30 MB</strong><span>payload / month</span></div>
             <div class="calc"><strong id="costOut">R6.00</strong><span>estimated payload cost / month</span></div>
           </div>
-          <p class="footnote">Once a real Open Payments backend is wired, instrument the requests and replace this assumption with observed payload sizes.</p>
+          <p class="footnote">A real backend should instrument the Open Payments calls and replace this estimate with measured payload sizes.</p>
         </div>
       </div>
     </div>
