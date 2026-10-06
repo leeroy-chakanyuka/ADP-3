@@ -78,14 +78,7 @@
             <div class="timer-text"><span id="timerText">generating…</span><span>demo rotation: 15s</span></div>
           </div>
 
-          <div class="field">
-            <label for="duration">How long should it remain valid?</label>
-            <select id="duration">
-              <option value="2">10 minutes</option>
-              <option value="6">30 minutes</option>
-            </select>
-          </div>
-          <div class="mini-note">Production uses 5-minute time windows. A 30-minute code is verified against the current window plus the previous five.</div>
+          <div class="mini-note"><strong>Maximum lifetime: 30 minutes.</strong> Production codes rotate every 5 minutes; the server accepts the current window plus the previous five. A specific code therefore remains usable for roughly 25–30 minutes, depending on when it was generated.</div>
           <div class="actions" style="margin-top:15px">
             <button class="btn gold" id="sendBtn">Send code to merchant →</button>
           </div>
@@ -193,8 +186,8 @@ display → 7K3M 482193</div>
         <h3>Validity without server-minted codes</h3>
         <p>The code is still generated locally. The server changes how many recent 5-minute windows it is willing to accept.</p>
         <div class="window-table">
-          <div class="window-row"><strong>10 MIN</strong><span>Check the current 5-minute window and the immediately previous one.</span></div>
-          <div class="window-row"><strong>30 MIN</strong><span>Check the current 5-minute window and the previous five.</span></div>
+          <div class="window-row"><strong>ROTATION</strong><span>The payer derives a fresh display code every 5 minutes. No server request is needed to generate it.</span></div>
+          <div class="window-row"><strong>30 MIN MAX</strong><span>The verifier checks the current 5-minute window and the previous five. Because rotation happens on fixed boundaries, any one code lives for about 25–30 minutes.</span></div>
           <div class="window-row"><strong>REDEEM</strong><span>Once a matching code is accepted, claim it in a uniqueness-constrained record before attempting payment.</span></div>
           <div class="window-row"><strong>REPLAY</strong><span>A later attempt using the same payer ID + code is rejected as already spent.</span></div>
         </div>
